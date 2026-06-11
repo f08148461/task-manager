@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タスク管理</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--bg2:#f5f5f0;--bg3:#ececec;
+  --text:#1a1a1a;--text2:#555;--text3:#888;
+  --border:#e0e0d8;--border2:#ccc;
+  --accent:#5348c0;--accent-bg:#eeedfe;--accent-text:#3c3489;
+  --success:#0f6e56;--success-bg:#e1f5ee;
+  --warn:#ba7517;--warn-bg:#faeeda;
+  --danger:#a32d2d;--danger-bg:#fcebeb;
+  --info:#185fa5;--info-bg:#e6f1fb;
+  --radius:8px;--radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1e1e1c;--bg2:#2a2a27;--bg3:#333330;
+    --text:#f0ede8;--text2:#aaa;--text3:#666;
+    --border:#3a3a36;--border2:#555;
+    --accent:#7f77dd;--accent-bg:#26215c;--accent-text:#afa9ec;
+    --success:#1d9e75;--success-bg:#04342c;
+    --warn:#ef9f27;--warn-bg:#412402;
+    --danger:#e24b4a;--danger-bg:#501313;
+    --info:#378add;--info-bg:#042c53;
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg2);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;display:flex}
+button{cursor:pointer;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text);padding:6px 12px;border-radius:var(--radius);transition:background 0.15s}
+button:hover{background:var(--bg3)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.primary:hover{opacity:0.9}
+button.danger{background:var(--danger-bg);color:var(--danger);border-color:var(--danger)}
+input,select,textarea{font-family:inherit;font-size:13px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text);padding:6px 10px;border-radius:var(--radius);outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+textarea{resize:vertical;min-height:60px}
+label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
+.form-group{margin-bottom:12px}
+
+/* Sidebar */
+#sidebar{width:200px;min-height:100vh;background:var(--bg);border-right:0.5px solid var(--border);padding:16px 0;flex-shrink:0;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow-y:auto}
+#sidebar h1{font-size:14px;font-weight:500;color:var(--text2);padding:0 16px 12px;border-bottom:0.5px solid var(--border);margin-bottom:8px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 16px;color:var(--text2);cursor:pointer;transition:background 0.1s;font-size:13px}
+.nav-item:hover{background:var(--bg2);color:var(--text)}
+.nav-item.active{background:var(--accent-bg);color:var(--accent-text);font-weight:500}
+.nav-item .icon{width:16px;height:16px;flex-shrink:0}
+.badge{background:var(--accent);color:#fff;font-size:10px;border-radius:10px;padding:1px 6px;margin-left:auto}
+
+/* Main */
+#main{flex:1;padding:24px;overflow:hidden}
+.page{display:none}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:8px;flex-wrap:wrap}
+.page-header h2{font-size:18px;font-weight:500}
+
+/* Cards */
+.card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:12px}
+
+/* Task item */
+.task-item{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px}
+.task-item.done{opacity:0.5}
+.task-item.done .task-title{text-decoration:line-through;color:var(--text3)}
+.task-check{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;margin-top:2px}
+.task-content{flex:1;min-width:0}
+.task-title{font-size:13px;color:var(--text)}
+.task-meta{font-size:11px;color:var(--text3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap}
+.task-actions{display:flex;gap:4px;flex-shrink:0}
+.task-actions button{padding:3px 8px;font-size:11px;border-radius:4px}
+.priority-badge{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:500}
+.p-high{background:var(--danger-bg);color:var(--danger)}
+.p-mid{background:var(--warn-bg);color:var(--warn)}
+.p-low{background:var(--success-bg);color:var(--success)}
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-bar select,.filter-bar input{width:auto;flex:1;min-width:100px;max-width:180px}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:24px;width:min(500px,92vw);max-height:90vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:500;margin-bottom:16px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--bg2);border-radius:var(--radius);padding:12px 16px}
+.stat-label{font-size:11px;color:var(--text2);margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:500}
+.empty{text-align:center;padding:40px;color:var(--text3);font-size:13px}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:0.5px solid var(--border)}
+.tab{padding:7px 16px;font-size:13px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;border-radius:0;transition:color 0.1s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+.tab:hover{color:var(--text)}
+
+/* Toggle */
+.toggle-switch{width:32px;height:18px;background:var(--border2);border-radius:9px;position:relative;transition:background 0.2s;cursor:pointer;display:inline-block;flex-shrink:0}
+.toggle-switch.on{background:var(--accent)}
+.toggle-knob{width:14px;height:14px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.2s}
+.toggle-switch.on .toggle-knob{left:16px}
+
+/* Project */
+.project-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px}
+.progress-bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:8px 0}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px}
+.recur-item{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.recur-badge{font-size:10px;padding:2px 7px;border-radius:4px;background:var(--info-bg);color:var(--info);font-weight:500;white-space:nowrap}
+
+/* ===== CALENDAR ===== */
+.cal-view{display:none}
+.cal-view.active{display:block}
+.cal-nav{display:flex;align-items:center;gap:6px}
+.cal-nav span{font-weight:500;min-width:160px;text-align:center}
+
+/* Monthly */
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);border-top:0.5px solid var(--border);border-left:0.5px solid var(--border)}
+.month-day-hdr{background:var(--bg2);padding:4px;text-align:center;font-size:11px;color:var(--text2);border-right:0.5px solid var(--border);border-bottom:0.5px solid var(--border)}
+.month-cell{background:var(--bg);border-right:0.5px solid var(--border);border-bottom:0.5px solid var(--border);padding:4px 6px;min-height:80px;vertical-align:top;transition:background 0.1s}
+.month-cell.other-month .month-day-num{color:var(--text3)}
+.month-cell.today{background:var(--accent-bg)}
+.month-cell.drag-over{background:var(--info-bg) !important;outline:2px solid var(--info);outline-offset:-2px}
+.month-day-num{font-size:12px;font-weight:500;margin-bottom:3px}
+.month-chip{font-size:10px;padding:1px 5px;border-radius:3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:grab;user-select:none;display:block;position:relative}
+.month-chip:active{opacity:0.6}
+.month-chip.task-chip{background:var(--bg3);color:var(--text2)}
+.month-chip.done-chip{opacity:0.5;text-decoration:line-through}
+.month-chip.ev-work{background:var(--info-bg);color:var(--info)}
+.month-chip.ev-personal{background:var(--success-bg);color:var(--success)}
+.month-chip.ev-other{background:var(--accent-bg);color:var(--accent-text)}
+/* Tooltip on hover */
+.month-chip[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:0;top:100%;z-index:50;background:var(--text);color:var(--bg);font-size:11px;padding:4px 8px;border-radius:4px;white-space:pre-wrap;max-width:200px;pointer-events:none;margin-top:2px;line-height:1.4;min-width:80px}
+
+/* Week/Day time grid */
+.tgrid-wrap{display:flex;flex-direction:column;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.tgrid-head{display:grid;border-bottom:0.5px solid var(--border);background:var(--bg2);flex-shrink:0}
+.tgrid-head-cell{padding:6px 4px;text-align:center;font-size:12px;border-left:0.5px solid var(--border)}
+.tgrid-head-cell:first-child{border-left:none}
+.tgrid-head-cell .hd-day{font-size:11px;color:var(--text2)}
+.tgrid-head-cell .hd-date{font-size:16px;font-weight:500;width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
+.hd-date.is-today{background:var(--accent);color:#fff}
+.allday-row{display:grid;border-bottom:0.5px solid var(--border);min-height:28px;background:var(--bg)}
+.allday-cell{border-left:0.5px solid var(--border);padding:2px 3px;min-height:28px}
+.allday-cell:first-child{border-left:none;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;color:var(--text3)}
+.allday-chip{font-size:10px;padding:1px 5px;border-radius:3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:grab;display:block}
+.allday-chip.task-chip{background:var(--bg3);color:var(--text2)}
+.allday-chip.done-chip{opacity:0.5;text-decoration:line-through}
+.tgrid-body{display:flex;overflow-y:auto;max-height:calc(100vh - 280px)}
+.tgrid-timecol{width:48px;flex-shrink:0}
+.tgrid-timecell{height:60px;font-size:10px;color:var(--text3);text-align:right;padding-right:6px;padding-top:2px;border-top:0.5px solid var(--border)}
+.tgrid-timecell:first-child{border-top:none}
+.tgrid-daycols{flex:1;display:grid;position:relative}
+.tgrid-daycol{border-left:0.5px solid var(--border);position:relative}
+.tgrid-daycol.drag-over-col{background:var(--info-bg) !important}
+.tgrid-hour{height:60px;border-top:0.5px solid var(--border);position:relative}
+.tgrid-hour:first-child{border-top:none}
+.tgrid-half{position:absolute;top:30px;left:0;right:0;border-top:0.5px dashed var(--border);opacity:0.5;pointer-events:none}
+.ev-block{position:absolute;left:2px;right:2px;border-radius:4px;padding:3px 6px;font-size:11px;cursor:grab;overflow:hidden;user-select:none;z-index:3;min-height:20px;line-height:1.3;transition:box-shadow 0.1s}
+.ev-block:hover{box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:4}
+.ev-block:active{cursor:grabbing}
+.ev-block.is-dragging{opacity:0.35;cursor:grabbing}
+.ev-block.ev-work{background:var(--info-bg);color:var(--info);border-left:2px solid var(--info)}
+.ev-block.ev-personal{background:var(--success-bg);color:var(--success);border-left:2px solid var(--success)}
+.ev-block.ev-other{background:var(--accent-bg);color:var(--accent-text);border-left:2px solid var(--accent)}
+.ev-title{font-weight:500;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-desc{font-size:10px;opacity:0.8;margin-top:1px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3}
+.ev-time{font-size:10px;opacity:0.75;margin-top:1px}
+.now-line{position:absolute;left:0;right:0;height:2px;background:var(--danger);z-index:4;pointer-events:none}
+.now-dot{position:absolute;left:-4px;top:-4px;width:10px;height:10px;background:var(--danger);border-radius:50%}
+
+/* ===== DIARY ===== */
+.diary-layout{display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:start}
+@media(max-width:700px){.diary-layout{grid-template-columns:1fr}}
+.diary-editor{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.diary-date-bar{display:flex;align-items:center;gap:6px;padding:10px 16px;border-bottom:0.5px solid var(--border);background:var(--bg2)}
+.diary-date-bar input[type=date]{width:auto;flex:1;max-width:160px}
+#diary-textarea{width:100%;min-height:420px;border:none;padding:20px;font-size:14px;line-height:1.9;resize:none;background:var(--bg);color:var(--text);font-family:inherit;outline:none}
+.diary-footer{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:0.5px solid var(--border);background:var(--bg2)}
+.diary-char-count{font-size:11px;color:var(--text3)}
+.diary-entry-item{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:background 0.1s}
+.diary-entry-item:hover{background:var(--bg2)}
+.diary-entry-item.active{border-color:var(--accent);background:var(--accent-bg)}
+.diary-entry-date{font-size:12px;font-weight:500;margin-bottom:3px}
+.diary-entry-preview{font-size:11px;color:var(--text2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.diary-saved-badge{font-size:11px;color:var(--success);display:none}
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <h1>タスク管理</h1>
+  <div class="nav-item active" onclick="showPage('tasks')" id="nav-tasks">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 7l2 2 4-3"/></svg>
+    タスク<span class="badge" id="badge-tasks" style="display:none">0</span>
+  </div>
+  <div class="nav-item" onclick="showPage('projects')" id="nav-projects">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/><path d="M2 4l1.5-2h9L14 4"/></svg>
+    プロジェクト
+  </div>
+  <div class="nav-item" onclick="showPage('schedule')" id="nav-schedule">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 2v2M11 2v2M2 7h12"/></svg>
+    スケジュール
+  </div>
+  <div class="nav-item" onclick="showPage('recurring')" id="nav-recurring">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 8A5 5 0 113 8a5 5 0 0110 0z"/><path d="M8 5v3l2 1.5"/></svg>
+    定期タスク
+  </div>
+  <div class="nav-item" onclick="showPage('diary')" id="nav-diary">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M5 6h6M5 9h4"/></svg>
+    日記
+  </div>
+  <div style="margin-top:auto;padding:12px 16px;border-top:0.5px solid var(--border)">
+    <div style="font-size:11px;color:var(--text3)" id="last-saved"></div>
+  </div>
+</nav>
+
+<main id="main">
+
+  <!-- Tasks -->
+  <div class="page active" id="page-tasks">
+    <div class="page-header">
+      <h2>タスク</h2>
+      <button class="primary" onclick="openTaskModal()">+ 追加</button>
+    </div>
+    <div class="stats-row" id="task-stats"></div>
+    <div class="filter-bar">
+      <input type="text" placeholder="検索..." id="task-search" oninput="renderTasks()">
+      <select id="task-filter-status" onchange="renderTasks()"><option value="all">すべて</option><option value="todo">未完了</option><option value="done">完了済み</option></select>
+      <select id="task-filter-project" onchange="renderTasks()"><option value="all">すべてのプロジェクト</option></select>
+      <select id="task-sort" onchange="renderTasks()"><option value="created">作成日順</option><option value="due">期日順</option><option value="priority">優先度順</option></select>
+    </div>
+    <div id="task-list"></div>
+  </div>
+
+  <!-- Projects -->
+  <div class="page" id="page-projects">
+    <div class="page-header"><h2>プロジェクト</h2><button class="primary" onclick="openProjectModal()">+ 追加</button></div>
+    <div id="project-list"></div>
+  </div>
+
+  <!-- Schedule -->
+  <div class="page" id="page-schedule">
+    <div class="page-header" style="margin-bottom:12px">
+      <div class="tabs" style="border-bottom:none">
+        <button class="tab active" id="tab-month" onclick="switchCalView('month')">月</button>
+        <button class="tab" id="tab-week" onclick="switchCalView('week')">週</button>
+        <button class="tab" id="tab-day" onclick="switchCalView('day')">日</button>
+      </div>
+      <div class="cal-nav">
+        <button onclick="calPrev()">&#8249;</button>
+        <span id="cal-title"></span>
+        <button onclick="calNext()">&#8250;</button>
+        <button onclick="calToday()" style="font-size:12px;padding:4px 10px">今日</button>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="openEvModal()">+ イベント</button>
+        <button class="primary" onclick="openTaskModal()">+ タスク</button>
+      </div>
+    </div>
+    <div class="cal-view active" id="cal-month"></div>
+    <div class="cal-view" id="cal-week"></div>
+    <div class="cal-view" id="cal-day"></div>
+  </div>
+
+  <!-- Recurring -->
+  <div class="page" id="page-recurring">
+    <div class="page-header"><h2>定期タスク</h2><button class="primary" onclick="openRecurModal()">+ 追加</button></div>
+    <div style="background:var(--info-bg);color:var(--info);padding:10px 14px;border-radius:var(--radius);font-size:12px;margin-bottom:16px">
+      定期タスクは次回実行日になると自動でタスクに追加されます。このページを開いたときに生成されます。
+    </div>
+    <div id="recur-list"></div>
+  </div>
+
+  <!-- Diary -->
+  <div class="page" id="page-diary">
+    <div class="page-header">
+      <h2>日記</h2>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="diaryPrev()">&#8249;</button>
+        <input type="date" id="diary-date" style="width:150px" onchange="loadDiaryEntry()">
+        <button onclick="diaryNext()">&#8250;</button>
+        <button onclick="diaryGoToday()" style="font-size:12px;padding:4px 10px">今日</button>
+      </div>
+    </div>
+    <div class="diary-layout">
+      <div class="diary-editor">
+        <div class="diary-date-bar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text3)"><path d="M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M5 6h6M5 9h4"/></svg>
+          <span id="diary-date-display" style="font-size:13px;font-weight:500"></span>
+          <span class="diary-saved-badge" id="diary-saved-badge">✓ 保存済み</span>
+        </div>
+        <textarea id="diary-textarea" placeholder="今日のできごとや思ったことを自由に書いてください..." oninput="onDiaryInput()"></textarea>
+        <div class="diary-footer">
+          <span class="diary-char-count" id="diary-char-count">0文字</span>
+          <div style="display:flex;gap:8px">
+            <button class="danger" id="diary-delete-btn" style="display:none" onclick="deleteDiaryEntry()">削除</button>
+            <button class="primary" onclick="saveDiaryEntry()">保存</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:8px">過去の記録</div>
+        <div id="diary-list"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Task Modal -->
+<div class="modal-overlay" id="task-modal" style="display:none" onclick="closeModal(event,'task-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="task-modal-title">タスクを追加</h3>
+    <input type="hidden" id="task-id">
+    <div class="form-group"><label>タイトル *</label><input type="text" id="task-title" placeholder="タスク名"></div>
+    <div class="form-group"><label>説明</label><textarea id="task-desc" placeholder="詳細（任意）"></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>期日</label><input type="date" id="task-due"></div>
+      <div class="form-group"><label>優先度</label>
+        <select id="task-priority"><option value="low">低</option><option value="mid" selected>中</option><option value="high">高</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>プロジェクト</label><select id="task-project"><option value="">なし</option></select></div>
+    <div class="modal-footer">
+      <button onclick="closeModalById('task-modal')">キャンセル</button>
+      <button class="primary" onclick="saveTask()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Event Modal -->
+<div class="modal-overlay" id="ev-modal" style="display:none" onclick="closeModal(event,'ev-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="ev-modal-title">イベントを追加</h3>
+    <input type="hidden" id="ev-id">
+    <div class="form-group"><label>タイトル *</label><input type="text" id="ev-title" placeholder="イベント名"></div>
+    <div class="form-group"><label>メモ</label><textarea id="ev-desc" placeholder="詳細・メモ（任意）"></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>日付 *</label><input type="date" id="ev-date"></div>
+      <div class="form-group"><label>カテゴリ</label>
+        <select id="ev-category"><option value="work">仕事</option><option value="personal">プライベート</option><option value="other">その他</option></select>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      <div class="toggle-switch" id="ev-allday-sw" onclick="toggleAlldayUI()"><div class="toggle-knob"></div></div>
+      <span style="font-size:12px;color:var(--text2)">終日</span>
+    </div>
+    <div id="ev-time-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>開始時刻</label><input type="time" id="ev-start" value="09:00"></div>
+      <div class="form-group"><label>終了時刻</label><input type="time" id="ev-end" value="10:00"></div>
+    </div>
+    <div class="modal-footer">
+      <button id="ev-delete-btn" class="danger" style="margin-right:auto;display:none" onclick="deleteEvFromModal()">削除</button>
+      <button onclick="closeModalById('ev-modal')">キャンセル</button>
+      <button class="primary" onclick="saveEv()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Project Modal -->
+<div class="modal-overlay" id="project-modal" style="display:none" onclick="closeModal(event,'project-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="project-modal-title">プロジェクトを追加</h3>
+    <input type="hidden" id="project-id">
+    <div class="form-group"><label>プロジェクト名 *</label><input type="text" id="project-name"></div>
+    <div class="form-group"><label>説明</label><textarea id="project-desc"></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>開始日</label><input type="date" id="project-start"></div>
+      <div class="form-group"><label>終了日</label><input type="date" id="project-end"></div>
+    </div>
+    <div class="modal-footer">
+      <button onclick="closeModalById('project-modal')">キャンセル</button>
+      <button class="primary" onclick="saveProject()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recurring Modal -->
+<div class="modal-overlay" id="recur-modal" style="display:none" onclick="closeModal(event,'recur-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="recur-modal-title">定期タスクを追加</h3>
+    <input type="hidden" id="recur-id">
+    <div class="form-group"><label>タイトル *</label><input type="text" id="recur-title"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>繰り返し</label>
+        <select id="recur-freq" onchange="updateRecurFields()">
+          <option value="daily">毎日</option><option value="weekly">毎週</option><option value="monthly">毎月</option>
+        </select>
+      </div>
+      <div class="form-group" id="recur-weekday-group" style="display:none"><label>曜日</label>
+        <select id="recur-weekday"><option value="0">日</option><option value="1">月</option><option value="2">火</option><option value="3">水</option><option value="4">木</option><option value="5">金</option><option value="6">土</option></select>
+      </div>
+      <div class="form-group" id="recur-monthday-group" style="display:none"><label>日</label>
+        <input type="number" id="recur-monthday" min="1" max="31" value="1">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>優先度</label>
+        <select id="recur-priority"><option value="low">低</option><option value="mid" selected>中</option><option value="high">高</option></select>
+      </div>
+      <div class="form-group"><label>プロジェクト</label><select id="recur-project"><option value="">なし</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <button onclick="closeModalById('recur-modal')">キャンセル</button>
+      <button class="primary" onclick="saveRecur()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS_JP = ['日','月','火','水','木','金','土'];
+const PX_PER_HOUR = 60;
+
+let state = { tasks:[], projects:[], recurring:[], events:[], diary:[] };
+let calViewMode = 'month';
+let calDate = new Date();
+let dragData = null;
+let dragEnded = false; // prevent click after drag
+
+function load() {
+  try { const s=localStorage.getItem('taskapp_v3'); if(s) state={...state,...JSON.parse(s)}; } catch(e){}
+}
+function save() {
+  localStorage.setItem('taskapp_v3', JSON.stringify(state));
+  const now=new Date();
+  document.getElementById('last-saved').textContent='保存: '+now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+}
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function dateToStr(d){ return d.toISOString().slice(0,10); }
+function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function fmtDateJP(ds){
+  const [y,m,d]=ds.split('-'); const dt=new Date(ds+'T00:00:00');
+  return `${y}年${parseInt(m)}月${parseInt(d)}日（${DAYS_JP[dt.getDay()]}）`;
+}
+
+// ---- Navigation ----
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='tasks') renderTasks();
+  if(name==='projects') renderProjects();
+  if(name==='schedule') renderCalendar();
+  if(name==='recurring'){ generateRecurringTasks(); renderRecurring(); }
+  if(name==='diary') initDiary();
+}
+
+// ======= CALENDAR =======
+function switchCalView(mode) {
+  calViewMode=mode;
+  ['month','week','day'].forEach(m=>{
+    document.getElementById('cal-'+m).classList.toggle('active',m===mode);
+    document.getElementById('tab-'+m).classList.toggle('active',m===mode);
+  });
+  renderCalendar();
+}
+function calPrev(){
+  if(calViewMode==='month') calDate.setMonth(calDate.getMonth()-1);
+  else if(calViewMode==='week') calDate=addDays(calDate,-7);
+  else calDate=addDays(calDate,-1);
+  renderCalendar();
+}
+function calNext(){
+  if(calViewMode==='month') calDate.setMonth(calDate.getMonth()+1);
+  else if(calViewMode==='week') calDate=addDays(calDate,7);
+  else calDate=addDays(calDate,1);
+  renderCalendar();
+}
+function calToday(){ calDate=new Date(); renderCalendar(); }
+function renderCalendar(){
+  if(calViewMode==='month') renderMonth();
+  else if(calViewMode==='week') renderWeek();
+  else renderDay();
+}
+
+// ======= MONTHLY =======
+function renderMonth(){
+  const year=calDate.getFullYear(), month=calDate.getMonth();
+  document.getElementById('cal-title').textContent=`${year}年 ${month+1}月`;
+  const first=new Date(year,month,1), last=new Date(year,month+1,0);
+  const today=todayStr();
+  let html='<div class="month-grid">';
+  DAYS_JP.forEach(d=>{ html+=`<div class="month-day-hdr">${d}</div>`; });
+  // Leading
+  for(let i=0;i<first.getDay();i++){
+    const d=addDays(first,-first.getDay()+i);
+    html+=monthCell(dateToStr(d),true,today);
+  }
+  for(let d=1;d<=last.getDate();d++){
+    const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    html+=monthCell(ds,false,today);
+  }
+  const trailing=(7-(first.getDay()+last.getDate())%7)%7;
+  for(let i=1;i<=trailing;i++) html+=monthCell(dateToStr(addDays(last,i)),true,today);
+  html+='</div>';
+  document.getElementById('cal-month').innerHTML=html;
+}
+
+function monthCell(ds,other,today){
+  const dayNum=parseInt(ds.split('-')[2]);
+  const cls=['month-cell',other?'other-month':'',ds===today?'today':''].filter(Boolean).join(' ');
+  const tasks=state.tasks.filter(t=>t.due===ds);
+  const evs=state.events.filter(e=>e.date===ds);
+  let chips='';
+  evs.forEach(ev=>{
+    const time=ev.allDay?'':ev.startTime+' ';
+    const tip=ev.desc?`${ev.title}\n${ev.desc}`:ev.title;
+    chips+=`<span class="month-chip ev-${ev.category}" draggable="true"
+      data-tip="${escHtml(tip)}"
+      ondragstart="startDrag(event,'event','${ev.id}')"
+      onclick="handleChipClick(event,'ev','${ev.id}')"
+      >${escHtml(time+ev.title)}</span>`;
+  });
+  tasks.forEach(t=>{
+    const tip=t.desc?`${t.title}\n${t.desc}`:t.title;
+    chips+=`<span class="month-chip task-chip ${t.done?'done-chip':''}" draggable="true"
+      data-tip="${escHtml(tip)}"
+      ondragstart="startDrag(event,'task','${t.id}')"
+      onclick="handleChipClick(event,'task','${t.id}')"
+      >${escHtml(t.title)}</span>`;
+  });
+  return `<div class="${cls}"
+    ondragover="event.preventDefault();event.currentTarget.classList.add('drag-over')"
+    ondragleave="event.currentTarget.classList.remove('drag-over')"
+    ondrop="dropMonth(event,'${ds}')">
+    <div class="month-day-num">${dayNum}</div>${chips}</div>`;
+}
+
+// ======= WEEKLY =======
+function getWeekStart(d){ const r=new Date(d); r.setDate(r.getDate()-r.getDay()); r.setHours(0,0,0,0); return r; }
+
+function renderWeek(){
+  const ws=getWeekStart(calDate), we=addDays(ws,6);
+  const m1=ws.getMonth()+1, m2=we.getMonth()+1, y1=ws.getFullYear(), y2=we.getFullYear();
+  document.getElementById('cal-title').textContent=
+    y1===y2?`${y1}年 ${m1}月${ws.getDate()}日 〜 ${m1===m2?'':m2+'月'}${we.getDate()}日`
+           :`${y1}年${m1}月${ws.getDate()}日 〜 ${y2}年${m2}月${we.getDate()}日`;
+  const days=Array.from({length:7},(_,i)=>addDays(ws,i));
+  const today=todayStr(), cols=7;
+
+  let head=`<div class="tgrid-head" style="grid-template-columns:48px repeat(${cols},1fr)"><div></div>`;
+  days.forEach(d=>{
+    const ds=dateToStr(d), isT=ds===today;
+    head+=`<div class="tgrid-head-cell"><div class="hd-day">${DAYS_JP[d.getDay()]}</div><div class="hd-date ${isT?'is-today':''}">${d.getDate()}</div></div>`;
+  });
+  head+='</div>';
+
+  let adr=`<div class="allday-row" style="grid-template-columns:48px repeat(${cols},1fr)"><div class="allday-cell">終日</div>`;
+  days.forEach(d=>{
+    const ds=dateToStr(d);
+    const allEvs=state.events.filter(e=>e.date===ds&&e.allDay);
+    const dayTasks=state.tasks.filter(t=>t.due===ds);
+    let ch='';
+    allEvs.forEach(ev=>{ ch+=`<span class="allday-chip ev-${ev.category}" draggable="true" ondragstart="startDrag(event,'event','${ev.id}')" onclick="handleChipClick(event,'ev','${ev.id}')">${escHtml(ev.title)}</span>`; });
+    dayTasks.forEach(t=>{ ch+=`<span class="allday-chip task-chip ${t.done?'done-chip':''}" draggable="true" ondragstart="startDrag(event,'task','${t.id}')" onclick="handleChipClick(event,'task','${t.id}')">${escHtml(t.title)}</span>`; });
+    adr+=`<div class="allday-cell" ondragover="event.preventDefault()" ondrop="dropAllDay(event,'${ds}')">${ch}</div>`;
+  });
+  adr+='</div>';
+
+  let body='<div class="tgrid-body"><div class="tgrid-timecol">';
+  for(let h=0;h<24;h++) body+=`<div class="tgrid-timecell">${h}:00</div>`;
+  body+=`</div><div class="tgrid-daycols" style="grid-template-columns:repeat(${cols},1fr)">`;
+  days.forEach(d=>{
+    const ds=dateToStr(d);
+    const timedEvs=state.events.filter(e=>e.date===ds&&!e.allDay);
+    let evH=timedEvs.map(ev=>evBlock(ev)).join('');
+    if(ds===today) evH+=nowLine();
+    body+=`<div class="tgrid-daycol" data-date="${ds}"
+      ondragover="dragOverCol(event)"
+      ondragleave="event.currentTarget.classList.remove('drag-over-col')"
+      ondrop="dropCol(event,'${ds}')">
+      ${hourLines(24)}${evH}</div>`;
+  });
+  body+='</div></div>';
+
+  document.getElementById('cal-week').innerHTML=`<div class="tgrid-wrap">${head}${adr}${body}</div>`;
+  scrollToWork('cal-week');
+}
+
+// ======= DAILY =======
+function renderDay(){
+  const ds=dateToStr(calDate), d=calDate, today=todayStr();
+  document.getElementById('cal-title').textContent=
+    `${d.getFullYear()}年 ${d.getMonth()+1}月${d.getDate()}日（${DAYS_JP[d.getDay()]}）`;
+
+  const allEvs=state.events.filter(e=>e.date===ds&&e.allDay);
+  const dayTasks=state.tasks.filter(t=>t.due===ds);
+  const timedEvs=state.events.filter(e=>e.date===ds&&!e.allDay);
+
+  let ch='';
+  allEvs.forEach(ev=>{ ch+=`<span class="allday-chip ev-${ev.category}" ondragstart="startDrag(event,'event','${ev.id}')" onclick="handleChipClick(event,'ev','${ev.id}')">${escHtml(ev.title)}</span>`; });
+  dayTasks.forEach(t=>{ ch+=`<span class="allday-chip task-chip ${t.done?'done-chip':''}" onclick="handleChipClick(event,'task','${t.id}')">${escHtml(t.title)}</span>`; });
+
+  let evH=timedEvs.map(ev=>evBlock(ev)).join('');
+  if(ds===today) evH+=nowLine();
+
+  document.getElementById('cal-day').innerHTML=`<div class="tgrid-wrap">
+    <div class="tgrid-head" style="grid-template-columns:48px 1fr">
+      <div></div>
+      <div class="tgrid-head-cell"><div class="hd-day">${DAYS_JP[d.getDay()]}</div><div class="hd-date ${ds===today?'is-today':''}">${d.getDate()}</div></div>
+    </div>
+    <div class="allday-row" style="grid-template-columns:48px 1fr">
+      <div class="allday-cell">終日</div>
+      <div class="allday-cell">${ch}</div>
+    </div>
+    <div class="tgrid-body">
+      <div class="tgrid-timecol">${Array.from({length:24},(_,h)=>`<div class="tgrid-timecell">${h}:00</div>`).join('')}</div>
+      <div class="tgrid-daycols" style="grid-template-columns:1fr">
+        <div class="tgrid-daycol" data-date="${ds}"
+          ondragover="dragOverCol(event)"
+          ondragleave="event.currentTarget.classList.remove('drag-over-col')"
+          ondrop="dropCol(event,'${ds}')">
+          ${hourLines(24)}${evH}
+        </div>
+      </div>
+    </div>
+  </div>`;
+  scrollToWork('cal-day');
+}
+
+function hourLines(n){ return Array.from({length:n},()=>`<div class="tgrid-hour"><div class="tgrid-half"></div></div>`).join(''); }
+function nowLine(){ const now=new Date(); const top=(now.getHours()*60+now.getMinutes())*PX_PER_HOUR/60; return `<div class="now-line" style="top:${top}px"><div class="now-dot"></div></div>`; }
+function scrollToWork(id){ setTimeout(()=>{ const b=document.querySelector(`#${id} .tgrid-body`); if(b) b.scrollTop=7*PX_PER_HOUR; },30); }
+
+function evBlock(ev){
+  const [sh,sm]=ev.startTime.split(':').map(Number);
+  const [eh,em]=ev.endTime.split(':').map(Number);
+  const top=(sh*60+sm)*PX_PER_HOUR/60;
+  const height=Math.max(20,((eh*60+em)-(sh*60+sm))*PX_PER_HOUR/60);
+  const showDesc=ev.desc&&height>36;
+  const showTime=height>20;
+  return `<div class="ev-block ev-${ev.category}" draggable="true"
+    style="top:${top}px;height:${height}px"
+    ondragstart="startDrag(event,'event','${ev.id}')"
+    onclick="handleEvBlockClick(event,'${ev.id}')"
+    title="${escHtml(ev.title+(ev.desc?'\n'+ev.desc:''))}">
+    <div class="ev-title">${escHtml(ev.title)}</div>
+    ${showDesc?`<div class="ev-desc">${escHtml(ev.desc)}</div>`:''}
+    ${showTime?`<div class="ev-time">${ev.startTime}〜${ev.endTime}</div>`:''}
+  </div>`;
+}
+
+// ======= DRAG & DROP =======
+function startDrag(e, type, id){
+  dragData={type,id};
+  dragEnded=false;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',id);
+  const el=e.currentTarget;
+  setTimeout(()=>el.classList.add('is-dragging'),0);
+  const onEnd=()=>{
+    document.querySelectorAll('.is-dragging').forEach(x=>x.classList.remove('is-dragging'));
+    document.querySelectorAll('.drag-over,.drag-over-col').forEach(x=>x.classList.remove('drag-over','drag-over-col'));
+    dragEnded=true;
+    setTimeout(()=>dragEnded=false, 200);
+  };
+  el.addEventListener('dragend', onEnd, {once:true});
+}
+
+function handleChipClick(e, type, id){
+  if(dragEnded) return;
+  e.stopPropagation();
+  if(type==='ev') openEvModal(id);
+  else openTaskModal(id);
+}
+
+function handleEvBlockClick(e, id){
+  if(dragEnded) return;
+  e.stopPropagation();
+  openEvModal(id);
+}
+
+function dropMonth(e, ds){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if(!dragData) return;
+  if(dragData.type==='task'){
+    const t=state.tasks.find(t=>t.id===dragData.id); if(t) t.due=ds;
+  } else {
+    const ev=state.events.find(ev=>ev.id===dragData.id); if(ev) ev.date=ds;
+  }
+  dragData=null; save(); renderCalendar();
+}
+
+function dropAllDay(e, ds){
+  e.preventDefault();
+  if(!dragData) return;
+  if(dragData.type==='task'){
+    const t=state.tasks.find(t=>t.id===dragData.id); if(t) t.due=ds;
+  } else {
+    const ev=state.events.find(ev=>ev.id===dragData.id); if(ev){ ev.date=ds; ev.allDay=true; }
+  }
+  dragData=null; save(); renderCalendar();
+}
+
+function dragOverCol(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  e.currentTarget.classList.add('drag-over-col');
+}
+
+function dropCol(e, ds){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over-col');
+  if(!dragData || dragData.type!=='event') return;
+  const ev=state.events.find(ev=>ev.id===dragData.id);
+  if(!ev) return;
+  const rect=e.currentTarget.getBoundingClientRect();
+  const scrollTop=e.currentTarget.closest('.tgrid-body').scrollTop;
+  const y=e.clientY-rect.top+scrollTop;
+  const totalMin=Math.round((y/PX_PER_HOUR*60)/15)*15;
+  const clampedMin=Math.max(0,Math.min(23*60+45,totalMin));
+  const sh=Math.floor(clampedMin/60), sm=clampedMin%60;
+  const [oh,om]=ev.startTime.split(':').map(Number);
+  const [eh,em]=ev.endTime.split(':').map(Number);
+  const dur=Math.max(15,(eh*60+em)-(oh*60+om));
+  const endMin=Math.min(24*60-1,clampedMin+dur);
+  const endH=Math.floor(endMin/60), endM=endMin%60;
+  ev.date=ds;
+  ev.startTime=`${String(sh).padStart(2,'0')}:${String(sm).padStart(2,'0')}`;
+  ev.endTime=`${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;
+  ev.allDay=false;
+  dragData=null; save(); renderCalendar();
+}
+
+// ======= EVENTS CRUD =======
+function openEvModal(id){
+  const deleteBtn=document.getElementById('ev-delete-btn');
+  if(id){
+    const ev=state.events.find(e=>e.id===id);
+    document.getElementById('ev-modal-title').textContent='イベントを編集';
+    document.getElementById('ev-id').value=ev.id;
+    document.getElementById('ev-title').value=ev.title;
+    document.getElementById('ev-desc').value=ev.desc||'';
+    document.getElementById('ev-date').value=ev.date;
+    document.getElementById('ev-category').value=ev.category||'other';
+    document.getElementById('ev-start').value=ev.startTime||'09:00';
+    document.getElementById('ev-end').value=ev.endTime||'10:00';
+    const on=ev.allDay||false;
+    const sw=document.getElementById('ev-allday-sw');
+    sw.classList.toggle('on',on); sw.dataset.on=on?'1':'';
+    document.getElementById('ev-time-fields').style.display=on?'none':'grid';
+    deleteBtn.style.display='';
+  } else {
+    document.getElementById('ev-modal-title').textContent='イベントを追加';
+    document.getElementById('ev-id').value='';
+    document.getElementById('ev-title').value='';
+    document.getElementById('ev-desc').value='';
+    document.getElementById('ev-date').value=dateToStr(calDate);
+    document.getElementById('ev-category').value='work';
+    document.getElementById('ev-start').value='09:00';
+    document.getElementById('ev-end').value='10:00';
+    const sw=document.getElementById('ev-allday-sw');
+    sw.classList.remove('on'); sw.dataset.on='';
+    document.getElementById('ev-time-fields').style.display='grid';
+    deleteBtn.style.display='none';
+  }
+  document.getElementById('ev-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('ev-title').focus(),50);
+}
+
+function toggleAlldayUI(){
+  const sw=document.getElementById('ev-allday-sw');
+  const on=!sw.dataset.on;
+  sw.classList.toggle('on',on); sw.dataset.on=on?'1':'';
+  document.getElementById('ev-time-fields').style.display=on?'none':'grid';
+}
+
+function saveEv(){
+  const title=document.getElementById('ev-title').value.trim();
+  if(!title){alert('タイトルを入力してください');return;}
+  const date=document.getElementById('ev-date').value;
+  if(!date){alert('日付を入力してください');return;}
+  const allDay=!!document.getElementById('ev-allday-sw').dataset.on;
+  const id=document.getElementById('ev-id').value;
+  const data={title,desc:document.getElementById('ev-desc').value.trim(),date,category:document.getElementById('ev-category').value,allDay,startTime:allDay?null:document.getElementById('ev-start').value,endTime:allDay?null:document.getElementById('ev-end').value};
+  if(id){const i=state.events.findIndex(e=>e.id===id);state.events[i]={...state.events[i],...data};}
+  else state.events.push({id:uid(),createdAt:new Date().toISOString(),...data});
+  save(); closeModalById('ev-modal'); renderCalendar();
+}
+
+function deleteEvFromModal(){
+  const id=document.getElementById('ev-id').value;
+  if(!id||!confirm('このイベントを削除しますか？')) return;
+  state.events=state.events.filter(e=>e.id!==id);
+  save(); closeModalById('ev-modal'); renderCalendar();
+}
+
+// ======= TASKS =======
+function openTaskModal(id){
+  populateProjectSelects();
+  if(id){
+    const t=state.tasks.find(t=>t.id===id);
+    document.getElementById('task-modal-title').textContent='タスクを編集';
+    document.getElementById('task-id').value=t.id;
+    document.getElementById('task-title').value=t.title;
+    document.getElementById('task-desc').value=t.desc||'';
+    document.getElementById('task-due').value=t.due||'';
+    document.getElementById('task-priority').value=t.priority||'mid';
+    document.getElementById('task-project').value=t.projectId||'';
+  } else {
+    document.getElementById('task-modal-title').textContent='タスクを追加';
+    document.getElementById('task-id').value='';
+    document.getElementById('task-title').value='';
+    document.getElementById('task-desc').value='';
+    document.getElementById('task-due').value='';
+    document.getElementById('task-priority').value='mid';
+    document.getElementById('task-project').value='';
+  }
+  document.getElementById('task-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('task-title').focus(),50);
+}
+
+function saveTask(){
+  const title=document.getElementById('task-title').value.trim();
+  if(!title){alert('タイトルを入力してください');return;}
+  const id=document.getElementById('task-id').value;
+  const data={title,desc:document.getElementById('task-desc').value.trim(),due:document.getElementById('task-due').value,priority:document.getElementById('task-priority').value,projectId:document.getElementById('task-project').value};
+  if(id){const i=state.tasks.findIndex(t=>t.id===id);state.tasks[i]={...state.tasks[i],...data};}
+  else state.tasks.unshift({id:uid(),done:false,createdAt:new Date().toISOString(),...data});
+  save(); closeModalById('task-modal'); renderTasks(); renderCalendar(); updateBadge();
+}
+
+function toggleTask(id){ const t=state.tasks.find(t=>t.id===id); t.done=!t.done; save(); renderTasks(); updateBadge(); }
+function deleteTask(id){ if(!confirm('このタスクを削除しますか？')) return; state.tasks=state.tasks.filter(t=>t.id!==id); save(); renderTasks(); updateBadge(); }
+
+function renderTasks(){
+  const search=(document.getElementById('task-search')?.value||'').toLowerCase();
+  const fStatus=document.getElementById('task-filter-status')?.value||'all';
+  const fProj=document.getElementById('task-filter-project')?.value||'all';
+  const sort=document.getElementById('task-sort')?.value||'created';
+  let tasks=[...state.tasks];
+  if(search) tasks=tasks.filter(t=>t.title.toLowerCase().includes(search)||(t.desc||'').toLowerCase().includes(search));
+  if(fStatus==='todo') tasks=tasks.filter(t=>!t.done);
+  if(fStatus==='done') tasks=tasks.filter(t=>t.done);
+  if(fProj!=='all') tasks=tasks.filter(t=>t.projectId===fProj);
+  if(sort==='due') tasks.sort((a,b)=>(a.due||'9999')<(b.due||'9999')?-1:1);
+  if(sort==='priority'){const o={high:0,mid:1,low:2};tasks.sort((a,b)=>(o[a.priority]||1)-(o[b.priority]||1));}
+  const total=state.tasks.length, done=state.tasks.filter(t=>t.done).length;
+  const today=todayStr(), overdue=state.tasks.filter(t=>!t.done&&t.due&&t.due<today).length;
+  document.getElementById('task-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">合計</div><div class="stat-value">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">完了</div><div class="stat-value" style="color:var(--success)">${done}</div></div>
+    <div class="stat-card"><div class="stat-label">未完了</div><div class="stat-value" style="color:var(--accent)">${total-done}</div></div>
+    <div class="stat-card"><div class="stat-label">期限超過</div><div class="stat-value" style="color:var(--danger)">${overdue}</div></div>`;
+  const pSel=document.getElementById('task-filter-project');
+  if(pSel){const cur=pSel.value;pSel.innerHTML='<option value="all">すべて</option>'+state.projects.map(p=>`<option value="${p.id}">${escHtml(p.name)}</option>`).join('');pSel.value=cur;}
+  const list=document.getElementById('task-list');
+  if(!tasks.length){list.innerHTML='<div class="empty">タスクがありません</div>';return;}
+  list.innerHTML=tasks.map(t=>{
+    const proj=state.projects.find(p=>p.id===t.projectId);
+    const pClass={high:'p-high',mid:'p-mid',low:'p-low'}[t.priority];
+    const pLabel={high:'高',mid:'中',low:'低'}[t.priority];
+    const overdue2=!t.done&&t.due&&t.due<today;
+    return `<div class="task-item ${t.done?'done':''}">
+      <input type="checkbox" class="task-check" ${t.done?'checked':''} onchange="toggleTask('${t.id}')">
+      <div class="task-content">
+        <div class="task-title">${escHtml(t.title)}</div>
+        <div class="task-meta">
+          <span class="priority-badge ${pClass}">${pLabel}</span>
+          ${t.due?`<span style="color:${overdue2?'var(--danger)':'var(--text3)'}">📅 ${t.due}</span>`:''}
+          ${proj?`<span style="color:var(--info)">◆ ${escHtml(proj.name)}</span>`:''}
+        </div>
+        ${t.desc?`<div style="font-size:11px;color:var(--text2);margin-top:4px">${escHtml(t.desc)}</div>`:''}
+      </div>
+      <div class="task-actions">
+        <button onclick="openTaskModal('${t.id}')">編集</button>
+        <button class="danger" onclick="deleteTask('${t.id}')">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ======= PROJECTS =======
+function openProjectModal(id){
+  if(id){
+    const p=state.projects.find(p=>p.id===id);
+    document.getElementById('project-modal-title').textContent='プロジェクトを編集';
+    document.getElementById('project-id').value=p.id;
+    document.getElementById('project-name').value=p.name;
+    document.getElementById('project-desc').value=p.desc||'';
+    document.getElementById('project-start').value=p.start||'';
+    document.getElementById('project-end').value=p.end||'';
+  } else {
+    document.getElementById('project-modal-title').textContent='プロジェクトを追加';
+    ['project-id','project-name','project-desc','project-start','project-end'].forEach(id=>document.getElementById(id).value='');
+  }
+  document.getElementById('project-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('project-name').focus(),50);
+}
+function saveProject(){
+  const name=document.getElementById('project-name').value.trim();
+  if(!name){alert('プロジェクト名を入力してください');return;}
+  const id=document.getElementById('project-id').value;
+  const data={name,desc:document.getElementById('project-desc').value.trim(),start:document.getElementById('project-start').value,end:document.getElementById('project-end').value};
+  if(id){const i=state.projects.findIndex(p=>p.id===id);state.projects[i]={...state.projects[i],...data};}
+  else state.projects.push({id:uid(),createdAt:new Date().toISOString(),...data});
+  save();closeModalById('project-modal');renderProjects();
+}
+function deleteProject(id){
+  if(!confirm('プロジェクトを削除しますか？')) return;
+  state.projects=state.projects.filter(p=>p.id!==id);
+  state.tasks.forEach(t=>{if(t.projectId===id)t.projectId='';});
+  save();renderProjects();
+}
+function renderProjects(){
+  const list=document.getElementById('project-list');
+  if(!state.projects.length){list.innerHTML='<div class="empty">プロジェクトがありません</div>';return;}
+  list.innerHTML=state.projects.map(p=>{
+    const tasks=state.tasks.filter(t=>t.projectId===p.id);
+    const done=tasks.filter(t=>t.done).length;
+    const pct=tasks.length?Math.round(done/tasks.length*100):0;
+    return `<div class="project-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div><div style="font-weight:500;font-size:14px">${escHtml(p.name)}</div>${p.desc?`<div style="font-size:12px;color:var(--text2);margin-top:2px">${escHtml(p.desc)}</div>`:''}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0"><button onclick="openProjectModal('${p.id}')">編集</button><button class="danger" onclick="deleteProject('${p.id}')">削除</button></div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2)"><span>タスク ${tasks.length}件（完了 ${done}件）</span><span>${pct}%</span></div>
+      ${(p.start||p.end)?`<div style="font-size:11px;color:var(--text3);margin-top:6px">${p.start||''} 〜 ${p.end||''}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ======= RECURRING =======
+function openRecurModal(id){
+  populateProjectSelects();
+  if(id){
+    const r=state.recurring.find(r=>r.id===id);
+    document.getElementById('recur-modal-title').textContent='定期タスクを編集';
+    document.getElementById('recur-id').value=r.id;
+    document.getElementById('recur-title').value=r.title;
+    document.getElementById('recur-freq').value=r.freq;
+    document.getElementById('recur-weekday').value=r.weekday||1;
+    document.getElementById('recur-monthday').value=r.monthday||1;
+    document.getElementById('recur-priority').value=r.priority||'mid';
+    document.getElementById('recur-project').value=r.projectId||'';
+  } else {
+    document.getElementById('recur-modal-title').textContent='定期タスクを追加';
+    ['recur-id','recur-title'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('recur-freq').value='daily';
+    document.getElementById('recur-priority').value='mid';
+    document.getElementById('recur-project').value='';
+  }
+  updateRecurFields();
+  document.getElementById('recur-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('recur-title').focus(),50);
+}
+function updateRecurFields(){
+  const freq=document.getElementById('recur-freq').value;
+  document.getElementById('recur-weekday-group').style.display=freq==='weekly'?'':'none';
+  document.getElementById('recur-monthday-group').style.display=freq==='monthly'?'':'none';
+}
+function saveRecur(){
+  const title=document.getElementById('recur-title').value.trim();
+  if(!title){alert('タイトルを入力してください');return;}
+  const id=document.getElementById('recur-id').value;
+  const freq=document.getElementById('recur-freq').value;
+  const data={title,freq,weekday:freq==='weekly'?parseInt(document.getElementById('recur-weekday').value):null,monthday:freq==='monthly'?parseInt(document.getElementById('recur-monthday').value):null,priority:document.getElementById('recur-priority').value,projectId:document.getElementById('recur-project').value,enabled:true,lastGen:null};
+  if(id){const i=state.recurring.findIndex(r=>r.id===id);state.recurring[i]={...state.recurring[i],...data};}
+  else state.recurring.push({id:uid(),createdAt:new Date().toISOString(),...data});
+  save();closeModalById('recur-modal');generateRecurringTasks();renderRecurring();
+}
+function deleteRecur(id){if(!confirm('定期タスクを削除しますか？'))return;state.recurring=state.recurring.filter(r=>r.id!==id);save();renderRecurring();}
+function toggleRecur(id){const r=state.recurring.find(r=>r.id===id);r.enabled=!r.enabled;save();renderRecurring();}
+function generateRecurringTasks(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const ts=dateToStr(today);
+  state.recurring.forEach(r=>{
+    if(!r.enabled)return;
+    let should=false;
+    if(r.freq==='daily') should=r.lastGen!==ts;
+    else if(r.freq==='weekly') should=today.getDay()===r.weekday&&r.lastGen!==ts;
+    else if(r.freq==='monthly') should=today.getDate()===r.monthday&&r.lastGen!==ts;
+    if(should&&!state.tasks.some(t=>t.recurId===r.id&&t.due===ts)){
+      state.tasks.unshift({id:uid(),title:r.title,desc:'',due:ts,priority:r.priority,projectId:r.projectId,done:false,createdAt:new Date().toISOString(),recurId:r.id});
+      r.lastGen=ts;
+    }
+  });
+  save();updateBadge();
+}
+function renderRecurring(){
+  const list=document.getElementById('recur-list');
+  if(!state.recurring.length){list.innerHTML='<div class="empty">定期タスクがありません</div>';return;}
+  const fl={daily:'毎日',weekly:'毎週',monthly:'毎月'};
+  list.innerHTML=state.recurring.map(r=>{
+    let detail=fl[r.freq];
+    if(r.freq==='weekly') detail+=` (${DAYS_JP[r.weekday]}曜)`;
+    if(r.freq==='monthly') detail+=` (${r.monthday}日)`;
+    return `<div class="recur-item">
+      <div class="toggle-switch ${r.enabled?'on':''}" onclick="toggleRecur('${r.id}')"><div class="toggle-knob"></div></div>
+      <div style="flex:1">
+        <div style="font-size:13px">${escHtml(r.title)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${detail} · ${r.lastGen?'最終: '+r.lastGen:'未生成'}</div>
+      </div>
+      <span class="recur-badge">${detail}</span>
+      <button onclick="openRecurModal('${r.id}')">編集</button>
+      <button class="danger" onclick="deleteRecur('${r.id}')">削除</button>
+    </div>`;
+  }).join('');
+}
+
+// ======= DIARY =======
+let diaryCurrentDate = todayStr();
+let diaryAutoSaveTimer = null;
+
+function initDiary(){
+  const inp=document.getElementById('diary-date');
+  if(!inp.value) inp.value=diaryCurrentDate;
+  else diaryCurrentDate=inp.value;
+  updateDiaryDateDisplay();
+  loadDiaryEntry();
+  renderDiaryList();
+}
+
+function updateDiaryDateDisplay(){
+  const el=document.getElementById('diary-date-display');
+  if(el) el.textContent=fmtDateJP(diaryCurrentDate);
+}
+
+function loadDiaryEntry(){
+  diaryCurrentDate=document.getElementById('diary-date').value||todayStr();
+  updateDiaryDateDisplay();
+  const entry=state.diary.find(e=>e.date===diaryCurrentDate);
+  const ta=document.getElementById('diary-textarea');
+  const badge=document.getElementById('diary-saved-badge');
+  const delBtn=document.getElementById('diary-delete-btn');
+  ta.value=entry?entry.content:'';
+  updateCharCount();
+  badge.style.display=entry?'':'none';
+  delBtn.style.display=entry?'':'none';
+  renderDiaryList();
+}
+
+function onDiaryInput(){
+  updateCharCount();
+  document.getElementById('diary-saved-badge').style.display='none';
+  clearTimeout(diaryAutoSaveTimer);
+  diaryAutoSaveTimer=setTimeout(()=>saveDiaryEntry(true),2000); // auto-save after 2s
+}
+
+function updateCharCount(){
+  const len=(document.getElementById('diary-textarea')?.value||'').length;
+  const el=document.getElementById('diary-char-count');
+  if(el) el.textContent=`${len.toLocaleString()}文字`;
+}
+
+function saveDiaryEntry(silent=false){
+  const content=document.getElementById('diary-textarea').value;
+  if(!content.trim()){
+    if(!silent) alert('内容を入力してください');
+    return;
+  }
+  const i=state.diary.findIndex(e=>e.date===diaryCurrentDate);
+  const now=new Date().toISOString();
+  if(i>=0){ state.diary[i].content=content; state.diary[i].updatedAt=now; }
+  else state.diary.push({id:uid(),date:diaryCurrentDate,content,createdAt:now,updatedAt:now});
+  save();
+  document.getElementById('diary-saved-badge').style.display='';
+  document.getElementById('diary-delete-btn').style.display='';
+  renderDiaryList();
+}
+
+function deleteDiaryEntry(){
+  if(!confirm('この日記を削除しますか？'))return;
+  state.diary=state.diary.filter(e=>e.date!==diaryCurrentDate);
+  save();
+  document.getElementById('diary-textarea').value='';
+  document.getElementById('diary-saved-badge').style.display='none';
+  document.getElementById('diary-delete-btn').style.display='none';
+  updateCharCount();
+  renderDiaryList();
+}
+
+function diaryPrev(){
+  const d=new Date(diaryCurrentDate+'T00:00:00');
+  d.setDate(d.getDate()-1);
+  document.getElementById('diary-date').value=dateToStr(d);
+  loadDiaryEntry();
+}
+function diaryNext(){
+  const d=new Date(diaryCurrentDate+'T00:00:00');
+  d.setDate(d.getDate()+1);
+  document.getElementById('diary-date').value=dateToStr(d);
+  loadDiaryEntry();
+}
+function diaryGoToday(){
+  document.getElementById('diary-date').value=todayStr();
+  loadDiaryEntry();
+}
+function loadDiaryByDate(ds){
+  document.getElementById('diary-date').value=ds;
+  loadDiaryEntry();
+}
+
+function renderDiaryList(){
+  const list=document.getElementById('diary-list');
+  if(!list) return;
+  const entries=[...state.diary].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  if(!entries.length){list.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">まだ記録がありません</div>';return;}
+  list.innerHTML=entries.map(e=>{
+    const isActive=e.date===diaryCurrentDate;
+    const preview=e.content.replace(/\n/g,' ').slice(0,50);
+    const [y,m,d]=e.date.split('-');
+    return `<div class="diary-entry-item ${isActive?'active':''}" onclick="loadDiaryByDate('${e.date}')">
+      <div class="diary-entry-date">${y}年${parseInt(m)}月${parseInt(d)}日</div>
+      <div class="diary-entry-preview">${escHtml(preview)}${e.content.length>50?'…':''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ======= HELPERS =======
+function populateProjectSelects(){
+  ['task-project','recur-project'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">なし</option>'+state.projects.map(p=>`<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+    sel.value=cur;
+  });
+}
+function updateBadge(){
+  const count=state.tasks.filter(t=>!t.done).length;
+  const b=document.getElementById('badge-tasks');
+  b.textContent=count; b.style.display=count?'':'none';
+}
+function closeModal(e,id){if(e.target.classList.contains('modal-overlay'))closeModalById(id);}
+function closeModalById(id){document.getElementById(id).style.display='none';}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.modal-overlay').forEach(m=>m.style.display='none');
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
+    const active=[...document.querySelectorAll('.modal-overlay')].find(m=>m.style.display!=='none');
+    if(active){
+      if(active.id==='task-modal') saveTask();
+      if(active.id==='ev-modal') saveEv();
+      if(active.id==='project-modal') saveProject();
+      if(active.id==='recur-modal') saveRecur();
+    }
+  }
+  // Diary: Cmd+S to save
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'&&document.getElementById('page-diary').classList.contains('active')){
+    e.preventDefault(); saveDiaryEntry();
+  }
+});
+
+// Init
+load();
+generateRecurringTasks();
+renderTasks();
+updateBadge();
+</script>
+</body>
+</html>
