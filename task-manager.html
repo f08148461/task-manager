@@ -730,10 +730,10 @@ function save(){
 }
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function todayStr(){return new Date().toISOString().slice(0,10);}
-function dateToStr(d){return d.toISOString().slice(0,10);}
+function dateToStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return`${y}-${m}-${day}`;}
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
 function fmtDateJP(ds){const[y,m,d]=ds.split('-');const dt=new Date(ds+'T00:00:00');return`${y}年${parseInt(m)}月${parseInt(d)}日（${DAYS_JP[dt.getDay()]}）`;}
+function todayStr(){return dateToStr(new Date());}
 
 // label helpers
 function getLabelById(id){return state.labels.find(l=>l.id===id);}
