@@ -197,6 +197,45 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
 .diary-entry-date{font-size:12px;font-weight:500;margin-bottom:3px}
 .diary-entry-preview{font-size:11px;color:var(--text2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .diary-saved-badge{font-size:11px;color:var(--success);display:none}
+
+/* ===== BOARDS (リスト) ===== */
+.boards-layout{display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start}
+@media(max-width:700px){.boards-layout{grid-template-columns:1fr}}
+.board-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px}
+.board-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 12px;text-align:center;cursor:pointer;transition:box-shadow 0.15s,border-color 0.15s;position:relative}
+.board-card:hover{box-shadow:0 2px 10px rgba(0,0,0,0.09);border-color:var(--border2)}
+.board-card.active{border-color:var(--accent);background:var(--accent-bg)}
+.board-card .board-emoji{font-size:28px;display:block;margin-bottom:6px;line-height:1}
+.board-card .board-name{font-size:12px;font-weight:500;color:var(--text);word-break:break-all;line-height:1.3}
+.board-card .board-count{font-size:10px;color:var(--text3);margin-top:3px}
+.board-add-card{border:1.5px dashed var(--border2);background:transparent;cursor:pointer;color:var(--text3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:90px;border-radius:var(--radius-lg);transition:border-color 0.15s,color 0.15s;font-size:22px}
+.board-add-card:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.board-panel{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.board-panel-header{padding:14px 18px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:10px}
+.board-panel-header .emoji{font-size:22px}
+.board-panel-header h3{font-size:15px;font-weight:500;flex:1}
+.item-card{padding:12px 16px;border-bottom:0.5px solid var(--border);display:flex;gap:10px;align-items:flex-start;transition:background 0.1s}
+.item-card:hover{background:var(--bg2)}
+.item-card:last-child{border-bottom:none}
+.item-card.done-item{opacity:0.55}
+.item-card.done-item .item-title{text-decoration:line-through;color:var(--text3)}
+.item-check{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;margin-top:3px}
+.item-body{flex:1;min-width:0}
+.item-title{font-size:13px;font-weight:500;color:var(--text);word-break:break-word}
+.item-note{font-size:12px;color:var(--text2);margin-top:3px;word-break:break-word}
+.item-link-row{margin-top:6px}
+.item-link-plain{font-size:11px;color:var(--accent);text-decoration:none;word-break:break-all;display:inline-flex;align-items:center;gap:4px}
+.item-link-plain:hover{text-decoration:underline}
+.yt-thumb{display:block;width:100%;max-width:240px;border-radius:6px;margin-top:6px;cursor:pointer;border:0.5px solid var(--border)}
+.maps-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;background:var(--success-bg);color:var(--success);padding:3px 10px;border-radius:20px;text-decoration:none;margin-top:6px;font-weight:500}
+.maps-badge:hover{opacity:0.85}
+.item-actions{display:flex;gap:4px;flex-shrink:0;opacity:0;transition:opacity 0.15s}
+.item-card:hover .item-actions{opacity:1}
+.item-actions button{padding:3px 8px;font-size:11px;border-radius:4px}
+.add-item-form{padding:12px 16px;border-top:0.5px solid var(--border);background:var(--bg2)}
+.emoji-picker-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.emoji-opt{font-size:20px;cursor:pointer;padding:2px 4px;border-radius:4px;line-height:1.3}
+.emoji-opt:hover,.emoji-opt.selected{background:var(--accent-bg)}
 </style>
 </head>
 <body>
@@ -227,6 +266,10 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
   <div class="nav-item" onclick="showPage('diary')" id="nav-diary">
     <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M5 6h6M5 9h4"/></svg>
     日記
+  </div>
+  <div class="nav-item" onclick="showPage('boards')" id="nav-boards">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+    リスト
   </div>
   <div style="margin-top:auto;padding:12px 16px;border-top:0.5px solid var(--border)">
     <div style="font-size:11px;color:var(--text3)" id="last-saved"></div>
@@ -288,6 +331,46 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
       定期タスクは次回実行日になると自動でタスクに追加されます。このページを開いたときに生成されます。
     </div>
     <div id="recur-list"></div>
+  </div>
+
+  <!-- Boards -->
+  <div class="page" id="page-boards">
+    <div class="page-header">
+      <h2>リスト</h2>
+    </div>
+    <div class="boards-layout">
+      <!-- Board grid -->
+      <div>
+        <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:10px">フォルダ</div>
+        <div class="board-grid" id="board-grid"></div>
+      </div>
+      <!-- Items panel -->
+      <div id="board-panel" style="display:none">
+        <div class="board-panel">
+          <div class="board-panel-header">
+            <span class="emoji" id="bp-emoji"></span>
+            <h3 id="bp-title"></h3>
+            <button onclick="openBoardModal(currentBoardId)" style="font-size:12px;padding:3px 10px">編集</button>
+            <button class="danger" onclick="deleteBoard(currentBoardId)" style="font-size:12px;padding:3px 10px">削除</button>
+          </div>
+          <div id="bp-items"></div>
+          <!-- Add item form -->
+          <div class="add-item-form">
+            <div class="form-group" style="margin-bottom:8px">
+              <input type="text" id="new-item-title" placeholder="追加する項目を入力..." onkeydown="if(event.key==='Enter')addItem()">
+            </div>
+            <div class="form-group" style="margin-bottom:8px">
+              <input type="text" id="new-item-url" placeholder="URL（YouTube・Googleマップなど、任意）" oninput="previewUrl()">
+            </div>
+            <div id="url-preview" style="margin-bottom:8px"></div>
+            <div class="form-group" style="margin-bottom:8px">
+              <input type="text" id="new-item-note" placeholder="メモ（任意）">
+            </div>
+            <button class="primary" onclick="addItem()" style="width:100%">追加</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Diary -->
@@ -385,6 +468,41 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
       <button id="ev-delete-btn" class="danger" style="margin-right:auto;display:none" onclick="deleteEvFromModal()">削除</button>
       <button onclick="closeModalById('ev-modal')">キャンセル</button>
       <button class="primary" onclick="saveEv()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Board Modal -->
+<div class="modal-overlay" id="board-modal" style="display:none" onclick="closeModal(event,'board-modal')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
+    <h3 id="board-modal-title">フォルダを作成</h3>
+    <input type="hidden" id="board-id">
+    <div class="form-group">
+      <label>絵文字</label>
+      <div class="emoji-picker-row" id="emoji-picker-row"></div>
+      <input type="text" id="board-emoji-input" placeholder="または直接入力（例: 🎯）" style="margin-top:6px">
+    </div>
+    <div class="form-group"><label>タイトル *</label><input type="text" id="board-name" placeholder="例: 欲しいものリスト"></div>
+    <div class="modal-footer">
+      <button onclick="closeModalById('board-modal')">キャンセル</button>
+      <button class="primary" onclick="saveBoard()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Item Edit Modal -->
+<div class="modal-overlay" id="item-modal" style="display:none" onclick="closeModal(event,'item-modal')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:460px">
+    <h3>項目を編集</h3>
+    <input type="hidden" id="item-edit-board-id">
+    <input type="hidden" id="item-edit-id">
+    <div class="form-group"><label>タイトル *</label><input type="text" id="item-edit-title"></div>
+    <div class="form-group"><label>URL</label><input type="text" id="item-edit-url" placeholder="https://..."></div>
+    <div class="form-group"><label>メモ</label><input type="text" id="item-edit-note"></div>
+    <div class="modal-footer">
+      <button class="danger" style="margin-right:auto" onclick="deleteItem(document.getElementById('item-edit-board-id').value,document.getElementById('item-edit-id').value)">削除</button>
+      <button onclick="closeModalById('item-modal')">キャンセル</button>
+      <button class="primary" onclick="saveItemEdit()">保存</button>
     </div>
   </div>
 </div>
@@ -515,18 +633,6 @@ function chipStyle(labelId){
 }
 
 // ---- Navigation ----
-function showPage(name){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('page-'+name).classList.add('active');
-  document.getElementById('nav-'+name).classList.add('active');
-  if(name==='tasks') renderTasks();
-  if(name==='projects') renderProjects();
-  if(name==='schedule') renderCalendar();
-  if(name==='recurring'){generateRecurringTasks();renderRecurring();}
-  if(name==='diary') initDiary();
-}
-
 // Sidebar mobile
 function toggleSidebar(){
   const sb=document.getElementById('sidebar'),ov=document.getElementById('sidebar-overlay');
@@ -1194,6 +1300,201 @@ document.addEventListener('keydown',e=>{
 });
 
 document.querySelectorAll('.nav-item').forEach(el=>{el.addEventListener('click',()=>{if(window.innerWidth<=600)closeSidebar();});});
+
+// ======= BOARDS =======
+const BOARD_EMOJIS=['🎯','🛍️','📍','✈️','🎬','🎮','📚','🍜','💪','🏠','🎵','🌸','💡','⭐','🎁','🚗','🏔️','🌊','🍕','👗'];
+let currentBoardId=null;
+
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='tasks') renderTasks();
+  if(name==='projects') renderProjects();
+  if(name==='schedule') renderCalendar();
+  if(name==='recurring'){generateRecurringTasks();renderRecurring();}
+  if(name==='diary') initDiary();
+  if(name==='boards') renderBoards();
+}
+
+function openBoardModal(id){
+  renderEmojiPicker();
+  if(id){
+    const b=state.boards.find(b=>b.id===id);
+    document.getElementById('board-modal-title').textContent='フォルダを編集';
+    document.getElementById('board-id').value=b.id;
+    document.getElementById('board-name').value=b.name;
+    document.getElementById('board-emoji-input').value=b.emoji||'📁';
+    selectEmoji(b.emoji||'📁');
+  }else{
+    document.getElementById('board-modal-title').textContent='フォルダを作成';
+    document.getElementById('board-id').value='';
+    document.getElementById('board-name').value='';
+    document.getElementById('board-emoji-input').value='';
+    selectEmoji(BOARD_EMOJIS[0]);
+  }
+  document.getElementById('board-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('board-name').focus(),50);
+}
+
+let selectedEmoji=BOARD_EMOJIS[0];
+function selectEmoji(e){
+  selectedEmoji=e;
+  document.getElementById('board-emoji-input').value=e;
+  document.querySelectorAll('.emoji-opt').forEach(el=>el.classList.toggle('selected',el.dataset.e===e));
+}
+function renderEmojiPicker(){
+  document.getElementById('emoji-picker-row').innerHTML=BOARD_EMOJIS.map(e=>
+    `<span class="emoji-opt ${e===selectedEmoji?'selected':''}" data-e="${e}" onclick="selectEmoji('${e}')">${e}</span>`
+  ).join('');
+  document.getElementById('board-emoji-input').oninput=function(){selectedEmoji=this.value;};
+}
+
+function saveBoard(){
+  const name=document.getElementById('board-name').value.trim();
+  if(!name){alert('タイトルを入力してください');return;}
+  const id=document.getElementById('board-id').value;
+  const emoji=document.getElementById('board-emoji-input').value||selectedEmoji||'📁';
+  if(!state.boards) state.boards=[];
+  if(id){
+    const b=state.boards.find(b=>b.id===id);
+    b.name=name;b.emoji=emoji;
+  }else{
+    state.boards.push({id:uid(),name,emoji,items:[],createdAt:new Date().toISOString()});
+  }
+  save();closeModalById('board-modal');renderBoards();
+}
+
+function deleteBoard(id){
+  if(!confirm('このフォルダを削除しますか？中のアイテムも消えます。'))return;
+  state.boards=state.boards.filter(b=>b.id!==id);
+  currentBoardId=null;
+  document.getElementById('board-panel').style.display='none';
+  save();renderBoards();
+}
+
+function selectBoard(id){
+  currentBoardId=id;
+  renderBoards();
+  renderBoardPanel();
+  document.getElementById('board-panel').style.display='';
+  setTimeout(()=>document.getElementById('new-item-title').focus(),80);
+}
+
+function renderBoards(){
+  if(!state.boards) state.boards=[];
+  const grid=document.getElementById('board-grid');
+  if(!grid)return;
+  grid.innerHTML=state.boards.map(b=>{
+    const done=b.items.filter(i=>i.done).length;
+    return`<div class="board-card ${currentBoardId===b.id?'active':''}" onclick="selectBoard('${b.id}')">
+      <span class="board-emoji">${b.emoji||'📁'}</span>
+      <div class="board-name">${escHtml(b.name)}</div>
+      <div class="board-count">${b.items.length}件${done?` / ${done}済み`:''}</div>
+    </div>`;
+  }).join('')+`<div class="board-add-card" onclick="openBoardModal()">＋<div style="font-size:11px;margin-top:2px">新しいフォルダ</div></div>`;
+}
+
+// URL detection
+function getYouTubeId(url){
+  const m=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m?m[1]:null;
+}
+function isGoogleMaps(url){return /maps\.google\.com|google\.com\/maps|goo\.gl\/maps|maps\.app\.goo\.gl/.test(url);}
+function isUrl(s){try{new URL(s);return s.startsWith('http');}catch{return false;}}
+
+function urlWidget(url,titleFallback){
+  if(!url||!isUrl(url)) return '';
+  const ytId=getYouTubeId(url);
+  if(ytId){
+    return`<div class="item-link-row">
+      <a href="${escHtml(url)}" target="_blank" rel="noopener">
+        <img class="yt-thumb" src="https://img.youtube.com/vi/${ytId}/mqdefault.jpg" alt="${escHtml(titleFallback)}" loading="lazy">
+      </a>
+      <div style="margin-top:4px"><a class="item-link-plain" href="${escHtml(url)}" target="_blank" rel="noopener">▶ YouTubeで開く</a></div>
+    </div>`;
+  }
+  if(isGoogleMaps(url)){
+    return`<div class="item-link-row"><a class="maps-badge" href="${escHtml(url)}" target="_blank" rel="noopener">📍 地図を開く</a></div>`;
+  }
+  const host=url.match(/^https?:\/\/([^/]+)/)?.[1]||url;
+  return`<div class="item-link-row"><a class="item-link-plain" href="${escHtml(url)}" target="_blank" rel="noopener">🔗 ${escHtml(host)}</a></div>`;
+}
+
+function previewUrl(){
+  const url=document.getElementById('new-item-url').value.trim();
+  document.getElementById('url-preview').innerHTML=url?urlWidget(url,'プレビュー'):'';
+}
+
+function addItem(){
+  const title=document.getElementById('new-item-title').value.trim();
+  if(!title) return;
+  const board=state.boards.find(b=>b.id===currentBoardId);if(!board)return;
+  board.items.push({id:uid(),title,url:document.getElementById('new-item-url').value.trim(),note:document.getElementById('new-item-note').value.trim(),done:false,createdAt:new Date().toISOString()});
+  document.getElementById('new-item-title').value='';
+  document.getElementById('new-item-url').value='';
+  document.getElementById('new-item-note').value='';
+  document.getElementById('url-preview').innerHTML='';
+  save();renderBoardPanel();renderBoards();
+  setTimeout(()=>document.getElementById('new-item-title').focus(),30);
+}
+
+function toggleItem(boardId,itemId){
+  const board=state.boards.find(b=>b.id===boardId);if(!board)return;
+  const item=board.items.find(i=>i.id===itemId);if(!item)return;
+  item.done=!item.done;save();renderBoardPanel();renderBoards();
+}
+
+function openItemEdit(boardId,itemId){
+  const board=state.boards.find(b=>b.id===boardId);if(!board)return;
+  const item=board.items.find(i=>i.id===itemId);if(!item)return;
+  document.getElementById('item-edit-board-id').value=boardId;
+  document.getElementById('item-edit-id').value=itemId;
+  document.getElementById('item-edit-title').value=item.title;
+  document.getElementById('item-edit-url').value=item.url||'';
+  document.getElementById('item-edit-note').value=item.note||'';
+  document.getElementById('item-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('item-edit-title').focus(),50);
+}
+
+function saveItemEdit(){
+  const boardId=document.getElementById('item-edit-board-id').value;
+  const itemId=document.getElementById('item-edit-id').value;
+  const board=state.boards.find(b=>b.id===boardId);if(!board)return;
+  const item=board.items.find(i=>i.id===itemId);if(!item)return;
+  item.title=document.getElementById('item-edit-title').value.trim()||item.title;
+  item.url=document.getElementById('item-edit-url').value.trim();
+  item.note=document.getElementById('item-edit-note').value.trim();
+  save();closeModalById('item-modal');renderBoardPanel();renderBoards();
+}
+
+function deleteItem(boardId,itemId){
+  if(!confirm('削除しますか？'))return;
+  const board=state.boards.find(b=>b.id===boardId);if(!board)return;
+  board.items=board.items.filter(i=>i.id!==itemId);
+  save();closeModalById('item-modal');renderBoardPanel();renderBoards();
+}
+
+function renderBoardPanel(){
+  const board=state.boards.find(b=>b.id===currentBoardId);if(!board)return;
+  document.getElementById('bp-emoji').textContent=board.emoji||'📁';
+  document.getElementById('bp-title').textContent=board.name;
+  const container=document.getElementById('bp-items');
+  if(!board.items.length){container.innerHTML='<div class="empty">まだ何も追加されていません</div>';return;}
+  container.innerHTML=board.items.map(item=>`
+    <div class="item-card ${item.done?'done-item':''}">
+      <input type="checkbox" class="item-check" ${item.done?'checked':''} onchange="toggleItem('${board.id}','${item.id}')">
+      <div class="item-body">
+        <div class="item-title">${escHtml(item.title)}</div>
+        ${item.note?`<div class="item-note">${escHtml(item.note)}</div>`:''}
+        ${item.url?urlWidget(item.url,item.title):''}
+      </div>
+      <div class="item-actions">
+        <button onclick="openItemEdit('${board.id}','${item.id}')">編集</button>
+      </div>
+    </div>`).join('');
+}
 
 // Init
 load();
