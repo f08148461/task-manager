@@ -454,7 +454,37 @@ let dragEnded=false;
 let selectedLabelId=null; // for ev modal
 
 // ---- utils ----
-function load(){try{const s=localStorage.getItem('taskapp_v4');if(s)state={...state,...JSON.parse(s)};}catch(e){}}
+function load(){
+  // Try current key first
+  try{const s=localStorage.getItem('taskapp_v4');if(s){state={...state,...JSON.parse(s)};return;}}catch(e){}
+  // Migrate from v3
+  try{
+    const s=localStorage.getItem('taskapp_v3');
+    if(s){
+      const old=JSON.parse(s);
+      state={...state,...old};
+      // Convert old category field → labelId
+      if(state.events&&state.events.length){
+        const catMap={work:{name:'仕事',color:'#4d96ff'},personal:{name:'プライベート',color:'#6bcb77'},other:{name:'その他',color:'#c77dff'}};
+        const created={};
+        state.events.forEach(ev=>{
+          if(ev.category&&!ev.labelId){
+            const cat=ev.category;
+            if(!created[cat]){
+              const label={id:uid(),name:catMap[cat]?.name||cat,color:catMap[cat]?.color||'#aaa'};
+              state.labels=state.labels||[];
+              state.labels.push(label);
+              created[cat]=label.id;
+            }
+            ev.labelId=created[cat];
+            delete ev.category;
+          }
+        });
+      }
+      save(); // save migrated data to v4
+    }
+  }catch(e){}
+}
 function save(){
   localStorage.setItem('taskapp_v4',JSON.stringify(state));
   const now=new Date();
