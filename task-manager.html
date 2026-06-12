@@ -237,6 +237,17 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
 .emoji-opt{font-size:20px;cursor:pointer;padding:2px 4px;border-radius:4px;line-height:1.3}
 .emoji-opt:hover,.emoji-opt.selected{background:var(--accent-bg)}
 
+/* ===== ATTACHMENTS ===== */
+.attach-drop-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:18px;text-align:center;cursor:pointer;color:var(--text3);font-size:13px;transition:border-color 0.15s,background 0.15s;margin-bottom:10px}
+.attach-drop-zone:hover,.attach-drop-zone.drag-over{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.attach-grid{display:flex;flex-wrap:wrap;gap:8px}
+.attach-thumb{position:relative;width:80px;height:80px;border-radius:var(--radius);overflow:hidden;border:0.5px solid var(--border);cursor:pointer;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px}
+.attach-thumb img{width:100%;height:100%;object-fit:cover}
+.attach-thumb .file-icon{font-size:28px;line-height:1}
+.attach-thumb .file-label{font-size:9px;color:var(--text2);text-align:center;padding:0 4px;word-break:break-all;max-height:28px;overflow:hidden}
+.attach-thumb .del-btn{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;border:none;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity 0.15s;padding:0}
+.attach-thumb:hover .del-btn{opacity:1}
+
 /* ===== HABITS ===== */
 .habit-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:12px;transition:box-shadow 0.15s}
 .habit-card:hover{box-shadow:0 2px 10px rgba(0,0,0,0.07)}
@@ -493,6 +504,19 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
     <div id="ev-time-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="form-group"><label>開始時刻</label><input type="time" id="ev-start" value="09:00"></div>
       <div class="form-group"><label>終了時刻</label><input type="time" id="ev-end" value="10:00"></div>
+    </div>
+    <!-- Attachments -->
+    <div class="form-group">
+      <label>添付ファイル（画像・PDF）</label>
+      <div class="attach-drop-zone" id="ev-drop-zone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="handleAttachDrop(event)"
+        onclick="document.getElementById('ev-file-input').click()">
+        📎 クリックまたはドラッグ＆ドロップ
+      </div>
+      <input type="file" id="ev-file-input" accept="image/*,application/pdf" multiple style="display:none" onchange="handleAttachSelect(this)">
+      <div class="attach-grid" id="ev-attach-grid"></div>
     </div>
     <div class="modal-footer">
       <button id="ev-delete-btn" class="danger" style="margin-right:auto;display:none" onclick="deleteEvFromModal()">削除</button>
@@ -1110,6 +1134,14 @@ function openEvModal(id){
   document.getElementById('new-label-form').style.display='none';
   document.getElementById('add-label-btn').style.display='';
   renderEvLabelPicker();
+  // Attachments
+  pendingAttachments=[];
+  if(id){
+    const ev=state.events.find(e=>e.id===id);
+    renderSavedAttachGrid(ev.attachments||[]);
+  } else {
+    document.getElementById('ev-attach-grid').innerHTML='';
+  }
   document.getElementById('ev-modal').style.display='flex';
   setTimeout(()=>document.getElementById('ev-title').focus(),50);
 }
@@ -1121,7 +1153,7 @@ function toggleAlldayUI(){
   document.getElementById('ev-time-fields').style.display=on?'none':'grid';
 }
 
-function saveEv(){
+async function saveEv(){
   const title=document.getElementById('ev-title').value.trim();
   if(!title){alert('タイトルを入力してください');return;}
   const date=document.getElementById('ev-date').value;
@@ -1129,8 +1161,19 @@ function saveEv(){
   const allDay=!!document.getElementById('ev-allday-sw').dataset.on;
   const id=document.getElementById('ev-id').value;
   const data={title,desc:document.getElementById('ev-desc').value.trim(),date,labelId:selectedLabelId||null,allDay,startTime:allDay?null:document.getElementById('ev-start').value,endTime:allDay?null:document.getElementById('ev-end').value};
-  if(id){const i=state.events.findIndex(e=>e.id===id);state.events[i]={...state.events[i],...data};}
-  else state.events.push({id:uid(),createdAt:new Date().toISOString(),...data});
+  // Save pending attachments to IndexedDB
+  const newMeta=await Promise.all(pendingAttachments.map(async a=>{
+    await dbPut(a.id,a.dataUrl);
+    return{id:a.id,name:a.name,type:a.type};
+  }));
+  if(id){
+    const i=state.events.findIndex(e=>e.id===id);
+    const existing=state.events[i].attachments||[];
+    state.events[i]={...state.events[i],...data,attachments:[...existing,...newMeta]};
+  } else {
+    state.events.push({id:uid(),createdAt:new Date().toISOString(),...data,attachments:newMeta});
+  }
+  pendingAttachments=[];
   save();closeModalById('ev-modal');renderCalendar();
 }
 
@@ -1391,6 +1434,135 @@ document.addEventListener('keydown',e=>{
 });
 
 document.querySelectorAll('.nav-item').forEach(el=>{el.addEventListener('click',()=>{if(window.innerWidth<=600)closeSidebar();});});
+
+// ======= ATTACHMENTS (IndexedDB) =======
+let attachDB=null;
+let pendingAttachments=[]; // [{id,name,type,dataUrl}] for current modal session
+
+function initAttachDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open('taskapp_attach',1);
+    req.onupgradeneeded=e=>e.target.result.createObjectStore('files',{keyPath:'id'});
+    req.onsuccess=e=>{attachDB=e.target.result;resolve();};
+    req.onerror=e=>reject(e);
+  });
+}
+function dbPut(id,dataUrl){
+  return new Promise((resolve,reject)=>{
+    const tx=attachDB.transaction('files','readwrite');
+    tx.objectStore('files').put({id,dataUrl});
+    tx.oncomplete=resolve;tx.onerror=reject;
+  });
+}
+function dbGet(id){
+  return new Promise((resolve,reject)=>{
+    const tx=attachDB.transaction('files','readonly');
+    const req=tx.objectStore('files').get(id);
+    req.onsuccess=e=>resolve(e.target.result?.dataUrl);
+    req.onerror=reject;
+  });
+}
+function dbDel(id){
+  if(!attachDB)return;
+  const tx=attachDB.transaction('files','readwrite');
+  tx.objectStore('files').delete(id);
+}
+
+function readFileAsDataUrl(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=e=>resolve(e.target.result);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+
+async function addAttachFiles(files){
+  for(const file of files){
+    if(file.size>20*1024*1024){alert(file.name+' は20MBを超えています');continue;}
+    const dataUrl=await readFileAsDataUrl(file);
+    const id=uid();
+    pendingAttachments.push({id,name:file.name,type:file.type,dataUrl});
+  }
+  renderAttachGrid();
+}
+
+function handleAttachDrop(e){
+  e.preventDefault();
+  document.getElementById('ev-drop-zone').classList.remove('drag-over');
+  addAttachFiles([...e.dataTransfer.files]);
+}
+function handleAttachSelect(input){
+  addAttachFiles([...input.files]);
+  input.value='';
+}
+
+function removePendingAttach(id){
+  pendingAttachments=pendingAttachments.filter(a=>a.id!==id);
+  renderAttachGrid();
+}
+
+function renderAttachGrid(){
+  const grid=document.getElementById('ev-attach-grid');
+  if(!grid)return;
+  grid.innerHTML=pendingAttachments.map(a=>{
+    const isImg=a.type.startsWith('image/');
+    const isPdf=a.type==='application/pdf';
+    const inner=isImg
+      ?`<img src="${a.dataUrl}" alt="${escHtml(a.name)}">`
+      :`<div class="file-icon">${isPdf?'📄':'📎'}</div><div class="file-label">${escHtml(a.name)}</div>`;
+    return`<div class="attach-thumb" onclick="openAttachPreview('${a.id}')">
+      ${inner}
+      <button class="del-btn" onclick="event.stopPropagation();removePendingAttach('${a.id}')" title="削除">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function renderSavedAttachGrid(attachments){
+  const grid=document.getElementById('ev-attach-grid');
+  if(!grid||!attachments?.length){if(grid)grid.innerHTML='';return;}
+  const items=await Promise.all(attachments.map(async a=>{
+    const dataUrl=await dbGet(a.id);
+    const isImg=a.type.startsWith('image/');
+    const isPdf=a.type==='application/pdf';
+    const inner=isImg&&dataUrl
+      ?`<img src="${dataUrl}" alt="${escHtml(a.name)}">`
+      :`<div class="file-icon">${isPdf?'📄':'📎'}</div><div class="file-label">${escHtml(a.name)}</div>`;
+    return`<div class="attach-thumb" onclick="openSavedAttach('${a.id}')">
+      ${inner}
+      <button class="del-btn" onclick="event.stopPropagation();removeSavedAttach('${a.id}')" title="削除">✕</button>
+    </div>`;
+  }));
+  grid.innerHTML=items.join('');
+}
+
+function openAttachPreview(id){
+  const a=pendingAttachments.find(x=>x.id===id);if(!a)return;
+  const win=window.open();
+  win.document.write(`<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh">
+    ${a.type.startsWith('image/')?`<img src="${a.dataUrl}" style="max-width:100%;max-height:100vh">`
+    :`<iframe src="${a.dataUrl}" style="width:100vw;height:100vh;border:none"></iframe>`}
+  </body></html>`);
+}
+async function openSavedAttach(id){
+  const dataUrl=await dbGet(id);if(!dataUrl)return;
+  const ev=state.events.find(e=>e.attachments?.some(a=>a.id===id));
+  const meta=ev?.attachments?.find(a=>a.id===id);
+  const win=window.open();
+  win.document.write(`<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh">
+    ${meta?.type?.startsWith('image/')?`<img src="${dataUrl}" style="max-width:100%;max-height:100vh">`
+    :`<iframe src="${dataUrl}" style="width:100vw;height:100vh;border:none"></iframe>`}
+  </body></html>`);
+}
+function removeSavedAttach(id){
+  if(!confirm('この添付ファイルを削除しますか？'))return;
+  const evId=document.getElementById('ev-id').value;
+  const ev=state.events.find(e=>e.id===evId);if(!ev)return;
+  ev.attachments=(ev.attachments||[]).filter(a=>a.id!==id);
+  dbDel(id);
+  save();
+  renderSavedAttachGrid(ev.attachments);
+}
 
 // ======= CLOUD SYNC (GitHub Gist) =======
 let syncCfg={token:'',gistId:''};
@@ -1948,6 +2120,7 @@ function renderBoardPanel(){
 }
 
 // Init
+initAttachDB().catch(console.error);
 loadSyncCfg();
 load();
 generateRecurringTasks();
