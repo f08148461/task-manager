@@ -350,24 +350,11 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
           <div class="board-panel-header">
             <span class="emoji" id="bp-emoji"></span>
             <h3 id="bp-title"></h3>
+            <button class="primary" onclick="openAddItemModal()" style="font-size:16px;padding:4px 12px;line-height:1">➕</button>
             <button onclick="openBoardModal(currentBoardId)" style="font-size:12px;padding:3px 10px">編集</button>
             <button class="danger" onclick="deleteBoard(currentBoardId)" style="font-size:12px;padding:3px 10px">削除</button>
           </div>
           <div id="bp-items"></div>
-          <!-- Add item form -->
-          <div class="add-item-form">
-            <div class="form-group" style="margin-bottom:8px">
-              <input type="text" id="new-item-title" placeholder="追加する項目を入力..." onkeydown="if(event.key==='Enter')addItem()">
-            </div>
-            <div class="form-group" style="margin-bottom:8px">
-              <input type="text" id="new-item-url" placeholder="URL（YouTube・Googleマップなど、任意）" oninput="previewUrl()">
-            </div>
-            <div id="url-preview" style="margin-bottom:8px"></div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input type="text" id="new-item-note" placeholder="メモ（任意）" style="flex:1">
-              <button class="primary" onclick="addItem()" style="padding:6px 14px;flex-shrink:0;font-size:18px;line-height:1">＋</button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -490,17 +477,21 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
   </div>
 </div>
 
-<!-- Item Edit Modal -->
+<!-- Item Add/Edit Modal -->
 <div class="modal-overlay" id="item-modal" style="display:none" onclick="closeModal(event,'item-modal')">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:460px">
-    <h3>項目を編集</h3>
+    <h3 id="item-modal-title">項目を追加</h3>
     <input type="hidden" id="item-edit-board-id">
     <input type="hidden" id="item-edit-id">
-    <div class="form-group"><label>タイトル *</label><input type="text" id="item-edit-title"></div>
-    <div class="form-group"><label>URL</label><input type="text" id="item-edit-url" placeholder="https://..."></div>
-    <div class="form-group"><label>メモ</label><input type="text" id="item-edit-note"></div>
+    <div class="form-group"><label>タイトル *</label><input type="text" id="item-edit-title" placeholder="例: AirPods Pro、函館、キャンプ体験..."></div>
+    <div class="form-group">
+      <label>URL（YouTube・Googleマップなど、任意）</label>
+      <input type="text" id="item-edit-url" placeholder="https://..." oninput="previewUrlModal()">
+      <div id="item-url-preview" style="margin-top:8px"></div>
+    </div>
+    <div class="form-group"><label>メモ</label><textarea id="item-edit-note" placeholder="金額・場所・詳細など"></textarea></div>
     <div class="modal-footer">
-      <button class="danger" style="margin-right:auto" onclick="deleteItem(document.getElementById('item-edit-board-id').value,document.getElementById('item-edit-id').value)">削除</button>
+      <button class="danger" id="item-delete-btn" style="margin-right:auto;display:none" onclick="deleteItem(document.getElementById('item-edit-board-id').value,document.getElementById('item-edit-id').value)">削除</button>
       <button onclick="closeModalById('item-modal')">キャンセル</button>
       <button class="primary" onclick="saveItemEdit()">保存</button>
     </div>
@@ -1422,22 +1413,26 @@ function urlWidget(url,titleFallback){
   return`<div class="item-link-row"><a class="item-link-plain" href="${escHtml(url)}" target="_blank" rel="noopener">🔗 ${escHtml(host)}</a></div>`;
 }
 
-function previewUrl(){
-  const url=document.getElementById('new-item-url').value.trim();
-  document.getElementById('url-preview').innerHTML=url?urlWidget(url,'プレビュー'):'';
+function previewUrlModal(){
+  const url=document.getElementById('item-edit-url').value.trim();
+  document.getElementById('item-url-preview').innerHTML=url?urlWidget(url,'プレビュー'):'';
+}
+
+function openAddItemModal(){
+  document.getElementById('item-modal-title').textContent='項目を追加';
+  document.getElementById('item-edit-board-id').value=currentBoardId;
+  document.getElementById('item-edit-id').value='';
+  document.getElementById('item-edit-title').value='';
+  document.getElementById('item-edit-url').value='';
+  document.getElementById('item-edit-note').value='';
+  document.getElementById('item-url-preview').innerHTML='';
+  document.getElementById('item-delete-btn').style.display='none';
+  document.getElementById('item-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('item-edit-title').focus(),50);
 }
 
 function addItem(){
-  const title=document.getElementById('new-item-title').value.trim();
-  if(!title) return;
-  const board=state.boards.find(b=>b.id===currentBoardId);if(!board)return;
-  board.items.push({id:uid(),title,url:document.getElementById('new-item-url').value.trim(),note:document.getElementById('new-item-note').value.trim(),done:false,createdAt:new Date().toISOString()});
-  document.getElementById('new-item-title').value='';
-  document.getElementById('new-item-url').value='';
-  document.getElementById('new-item-note').value='';
-  document.getElementById('url-preview').innerHTML='';
-  save();renderBoardPanel();renderBoards();
-  setTimeout(()=>document.getElementById('new-item-title').focus(),30);
+  // kept for compatibility, now unused
 }
 
 function toggleItem(boardId,itemId){
@@ -1449,11 +1444,14 @@ function toggleItem(boardId,itemId){
 function openItemEdit(boardId,itemId){
   const board=state.boards.find(b=>b.id===boardId);if(!board)return;
   const item=board.items.find(i=>i.id===itemId);if(!item)return;
+  document.getElementById('item-modal-title').textContent='項目を編集';
   document.getElementById('item-edit-board-id').value=boardId;
   document.getElementById('item-edit-id').value=itemId;
   document.getElementById('item-edit-title').value=item.title;
   document.getElementById('item-edit-url').value=item.url||'';
   document.getElementById('item-edit-note').value=item.note||'';
+  document.getElementById('item-url-preview').innerHTML=item.url?urlWidget(item.url,item.title):'';
+  document.getElementById('item-delete-btn').style.display='';
   document.getElementById('item-modal').style.display='flex';
   setTimeout(()=>document.getElementById('item-edit-title').focus(),50);
 }
@@ -1461,11 +1459,17 @@ function openItemEdit(boardId,itemId){
 function saveItemEdit(){
   const boardId=document.getElementById('item-edit-board-id').value;
   const itemId=document.getElementById('item-edit-id').value;
+  const title=document.getElementById('item-edit-title').value.trim();
+  if(!title){alert('タイトルを入力してください');return;}
   const board=state.boards.find(b=>b.id===boardId);if(!board)return;
-  const item=board.items.find(i=>i.id===itemId);if(!item)return;
-  item.title=document.getElementById('item-edit-title').value.trim()||item.title;
-  item.url=document.getElementById('item-edit-url').value.trim();
-  item.note=document.getElementById('item-edit-note').value.trim();
+  if(itemId){
+    const item=board.items.find(i=>i.id===itemId);if(!item)return;
+    item.title=title;
+    item.url=document.getElementById('item-edit-url').value.trim();
+    item.note=document.getElementById('item-edit-note').value.trim();
+  }else{
+    board.items.push({id:uid(),title,url:document.getElementById('item-edit-url').value.trim(),note:document.getElementById('item-edit-note').value.trim(),done:false,createdAt:new Date().toISOString()});
+  }
   save();closeModalById('item-modal');renderBoardPanel();renderBoards();
 }
 
