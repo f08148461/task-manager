@@ -1482,18 +1482,41 @@ function updateSyncModal(){
   document.getElementById('sync-pull-btn').style.display=connected?'':'none';
   document.getElementById('sync-status').style.display=connected?'':'none';
 }
+async function findExistingGist(token){
+  try{
+    const r=await fetch('https://api.github.com/gists?per_page=100',{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}});
+    if(!r.ok) return null;
+    const list=await r.json();
+    const found=list.find(g=>g.files&&g.files['taskapp-data.json']);
+    return found?found.id:null;
+  }catch(e){return null;}
+}
+
 async function connectSync(){
   const inp=document.getElementById('sync-token-input').value.trim();
   if(!inp||inp.startsWith('●')){
-    // token unchanged, just push
     if(syncCfg.token){await syncPush();return;}
     document.getElementById('sync-modal-status').textContent='トークンを入力してください';return;
   }
   syncCfg.token=inp;
+  syncCfg.gistId='';
   saveSyncCfg();
-  document.getElementById('sync-modal-status').textContent='接続中...';
-  await syncPush();
+  setSyncModalStatus('🔍 既存のデータを検索中...');
+  const existingId=await findExistingGist(inp);
+  if(existingId){
+    syncCfg.gistId=existingId;
+    saveSyncCfg();
+    setSyncModalStatus('✓ 既存データを発見！取得中...');
+    await syncPull();
+  }else{
+    setSyncModalStatus('新規データを作成中...');
+    await syncPush();
+  }
   updateSyncModal();
+}
+function setSyncModalStatus(msg){
+  const el=document.getElementById('sync-modal-status');
+  if(el) el.textContent=msg;
 }
 function disconnectSync(){
   if(!confirm('同期を解除しますか？（ローカルのデータは消えません）'))return;
