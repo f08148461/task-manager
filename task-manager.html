@@ -648,7 +648,8 @@ function monthCell(ds,other,today){
   return `<div class="${cls}"
     ondragover="event.preventDefault();event.currentTarget.classList.add('drag-over')"
     ondragleave="event.currentTarget.classList.remove('drag-over')"
-    ondrop="dropMonth(event,'${ds}')">
+    ondrop="dropMonth(event,'${ds}')"
+    onclick="cellClick(event,'${ds}')">
     <div class="month-day-num">${dayNum}</div>${chips}</div>`;
 }
 
@@ -697,7 +698,8 @@ function renderWeek(){
     body+=`<div class="tgrid-daycol" data-date="${ds}"
       ondragover="dragOverCol(event)"
       ondragleave="event.currentTarget.classList.remove('drag-over-col')"
-      ondrop="dropCol(event,'${ds}')">
+      ondrop="dropCol(event,'${ds}')"
+      onclick="colClick(event,'${ds}')">
       ${hourLines(24)}${evH}</div>`;
   });
   body+='</div></div>';
@@ -735,7 +737,8 @@ function renderDay(){
         <div class="tgrid-daycol" data-date="${ds}"
           ondragover="dragOverCol(event)"
           ondragleave="event.currentTarget.classList.remove('drag-over-col')"
-          ondrop="dropCol(event,'${ds}')">
+          ondrop="dropCol(event,'${ds}')"
+          onclick="colClick(event,'${ds}')">
           ${hourLines(24)}${evH}
         </div>
       </div>
@@ -768,6 +771,35 @@ function evBlock(ev){
 }
 
 // ======= DRAG & DROP =======
+// Click on empty calendar cell → open event modal with date/time pre-filled
+function cellClick(e,ds){
+  if(dragEnded)return;
+  // only fire if click landed on the cell itself (not a chip)
+  if(e.target.closest('.month-chip'))return;
+  openEvModal();
+  document.getElementById('ev-date').value=ds;
+}
+function colClick(e,ds){
+  if(dragEnded)return;
+  if(e.target.closest('.ev-block,.allday-chip'))return;
+  const col=e.currentTarget;
+  const rect=col.getBoundingClientRect();
+  const scrollTop=col.closest('.tgrid-body').scrollTop;
+  const y=e.clientY-rect.top+scrollTop;
+  const totalMin=Math.round((y/PX_PER_HOUR*60)/15)*15;
+  const sh=Math.floor(totalMin/60),sm=totalMin%60;
+  const endMin=Math.min(24*60-1,totalMin+60);
+  const eh=Math.floor(endMin/60),em=endMin%60;
+  const pad=n=>String(n).padStart(2,'0');
+  openEvModal();
+  document.getElementById('ev-date').value=ds;
+  document.getElementById('ev-start').value=`${pad(sh)}:${pad(sm)}`;
+  document.getElementById('ev-end').value=`${pad(eh)}:${pad(em)}`;
+  const sw=document.getElementById('ev-allday-sw');
+  sw.classList.remove('on');sw.dataset.on='';
+  document.getElementById('ev-time-fields').style.display='grid';
+}
+
 function startDrag(e,type,id){
   dragData={type,id};dragEnded=false;
   e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',id);
