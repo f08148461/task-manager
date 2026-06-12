@@ -887,19 +887,19 @@ function monthCell(ds,other,today){
     const st=ev.allDay?'':ev.startTime+' ';
     const style=chipStyle(ev.labelId);
     const tip=ev.desc?`${ev.title}\n${ev.desc}`:ev.title;
-    chips+=`<span class="month-chip" style="${style}" draggable="true"
+    chips+=`<div class="month-chip" style="${style}" draggable="true"
       data-tip="${escHtml(tip)}"
       ondragstart="startDrag(event,'event','${ev.id}')"
       onclick="handleChipClick(event,'ev','${ev.id}')"
-      >${escHtml(st+ev.title)}</span>`;
+      >${escHtml(st+ev.title)}</div>`;
   });
   tasks.forEach(t=>{
     const tip=t.desc?`${t.title}\n${t.desc}`:t.title;
-    chips+=`<span class="month-chip task-chip ${t.done?'done-chip':''}" draggable="true"
+    chips+=`<div class="month-chip task-chip ${t.done?'done-chip':''}" draggable="true"
       data-tip="${escHtml(tip)}"
       ondragstart="startDrag(event,'task','${t.id}')"
       onclick="handleChipClick(event,'task','${t.id}')"
-      >${escHtml(t.title)}</span>`;
+      >${escHtml(t.title)}</div>`;
   });
   return `<div class="${cls}"
     ondragover="event.preventDefault();event.currentTarget.classList.add('drag-over')"
