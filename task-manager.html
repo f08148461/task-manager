@@ -298,8 +298,12 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
     <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2c0 0-5 3-5 7a5 5 0 0010 0c0-4-5-7-5-7z"/><path d="M8 9V6"/></svg>
     習慣
   </div>
-  <div style="margin-top:auto;padding:12px 16px;border-top:0.5px solid var(--border)">
+  <div style="margin-top:auto;padding:10px 12px;border-top:0.5px solid var(--border);display:flex;flex-direction:column;gap:6px">
     <div style="font-size:11px;color:var(--text3)" id="last-saved"></div>
+    <div id="sync-status" style="font-size:11px;display:none"></div>
+    <button onclick="openSyncSettings()" style="font-size:11px;padding:4px 8px;display:flex;align-items:center;gap:5px;width:100%;justify-content:center" id="sync-btn">
+      ☁️ <span id="sync-btn-label">クラウド同期</span>
+    </button>
   </div>
 </nav>
 
@@ -498,6 +502,36 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
   </div>
 </div>
 
+<!-- Sync Settings Modal -->
+<div class="modal-overlay" id="sync-modal" style="display:none" onclick="closeModal(event,'sync-modal')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:440px">
+    <h3>☁️ クラウド同期設定</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.7">
+      GitHub Gistを使ってどのデバイスからでもデータを同期できます。<br>
+      <strong>トークン取得手順：</strong><br>
+      1. <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--accent)">github.com/settings/tokens</a> を開く<br>
+      2. 「Generate new token (classic)」をクリック<br>
+      3. <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">gist</code> のみチェックしてトークン発行<br>
+      4. 表示された <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">ghp_...</code> をここに貼る
+    </p>
+    <div class="form-group">
+      <label>GitHub Personal Access Token</label>
+      <input type="password" id="sync-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+    </div>
+    <div class="form-group" id="sync-gist-group" style="display:none">
+      <label>Gist ID（自動設定・変更不要）</label>
+      <input type="text" id="sync-gist-input" placeholder="自動で生成されます">
+    </div>
+    <div id="sync-modal-status" style="font-size:12px;margin-bottom:12px;min-height:18px"></div>
+    <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
+      <button class="danger" id="sync-disconnect-btn" style="margin-right:auto;display:none" onclick="disconnectSync()">接続解除</button>
+      <button onclick="closeModalById('sync-modal')">閉じる</button>
+      <button onclick="syncPull()" id="sync-pull-btn" style="display:none">📥 クラウドから取得</button>
+      <button class="primary" onclick="connectSync()">接続・同期</button>
+    </div>
+  </div>
+</div>
+
 <!-- Habit Modal -->
 <div class="modal-overlay" id="habit-modal" style="display:none" onclick="closeModal(event,'habit-modal')">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
@@ -660,6 +694,7 @@ function save(){
   localStorage.setItem('taskapp_v4',JSON.stringify(state));
   const now=new Date();
   document.getElementById('last-saved').textContent='保存: '+now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  schedulePush();
 }
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -1354,6 +1389,121 @@ document.addEventListener('keydown',e=>{
 
 document.querySelectorAll('.nav-item').forEach(el=>{el.addEventListener('click',()=>{if(window.innerWidth<=600)closeSidebar();});});
 
+// ======= CLOUD SYNC (GitHub Gist) =======
+let syncCfg={token:'',gistId:''};
+let syncPushTimer=null;
+
+function loadSyncCfg(){
+  try{const s=localStorage.getItem('taskapp_sync');if(s)syncCfg={...syncCfg,...JSON.parse(s)};}catch(e){}
+}
+function saveSyncCfg(){localStorage.setItem('taskapp_sync',JSON.stringify(syncCfg));}
+
+function setSyncUI(status,msg){
+  const el=document.getElementById('sync-status');
+  const btn=document.getElementById('sync-btn-label');
+  if(!el)return;
+  const map={ok:{icon:'☁️✓',color:'var(--success)',label:'同期済み'},error:{icon:'☁️✕',color:'var(--danger)',label:'同期エラー'},syncing:{icon:'☁️…',color:'var(--text2)',label:'同期中...'},idle:{icon:'',color:'var(--text3)',label:'クラウド同期'}};
+  const s=map[status]||map.idle;
+  el.style.display=msg?'':'none';
+  el.style.color=s.color;
+  el.textContent=msg||'';
+  if(btn) btn.textContent=s.label;
+  const modalEl=document.getElementById('sync-modal-status');
+  if(modalEl&&msg) modalEl.textContent=msg;
+}
+
+async function syncPush(){
+  if(!syncCfg.token) return;
+  setSyncUI('syncing','同期中...');
+  const content=JSON.stringify(state,null,0);
+  const headers={'Authorization':'token '+syncCfg.token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
+  try{
+    if(!syncCfg.gistId){
+      const r=await fetch('https://api.github.com/gists',{method:'POST',headers,body:JSON.stringify({description:'task-manager-app-data',public:false,files:{'taskapp-data.json':{content}}})});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const d=await r.json();
+      syncCfg.gistId=d.id;saveSyncCfg();
+      updateSyncModal();
+    }else{
+      const r=await fetch('https://api.github.com/gists/'+syncCfg.gistId,{method:'PATCH',headers,body:JSON.stringify({files:{'taskapp-data.json':{content}}})});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+    }
+    setSyncUI('ok','☁️ 同期完了 '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){setSyncUI('error','同期エラー: '+e.message);}
+}
+
+async function syncPull(){
+  if(!syncCfg.token||!syncCfg.gistId) return;
+  setSyncUI('syncing','クラウドから取得中...');
+  try{
+    const r=await fetch('https://api.github.com/gists/'+syncCfg.gistId,{headers:{'Authorization':'token '+syncCfg.token,'Accept':'application/vnd.github.v3+json'}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    const content=d.files['taskapp-data.json']?.content;
+    if(content){
+      const parsed=JSON.parse(content);
+      state={tasks:[],projects:[],recurring:[],events:[],diary:[],labels:[],boards:[],habits:[],...parsed};
+      localStorage.setItem('taskapp_v4',JSON.stringify(state));
+      // re-render current page
+      document.querySelectorAll('.page.active').forEach(p=>{
+        const name=p.id.replace('page-','');
+        if(name==='tasks')renderTasks();
+        if(name==='projects')renderProjects();
+        if(name==='schedule')renderCalendar();
+        if(name==='recurring')renderRecurring();
+        if(name==='diary')initDiary();
+        if(name==='boards')renderBoards();
+        if(name==='habits')renderHabits();
+      });
+    }
+    setSyncUI('ok','☁️ 取得完了 '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){setSyncUI('error','取得エラー: '+e.message);}
+}
+
+function schedulePush(){
+  clearTimeout(syncPushTimer);
+  if(!syncCfg.token) return;
+  syncPushTimer=setTimeout(syncPush,4000);
+}
+
+function openSyncSettings(){
+  loadSyncCfg();
+  document.getElementById('sync-token-input').value=syncCfg.token?'●'.repeat(20):'';
+  document.getElementById('sync-gist-input').value=syncCfg.gistId||'';
+  updateSyncModal();
+  document.getElementById('sync-modal-status').textContent='';
+  document.getElementById('sync-modal').style.display='flex';
+}
+function updateSyncModal(){
+  const connected=!!(syncCfg.token&&syncCfg.gistId);
+  document.getElementById('sync-gist-group').style.display=syncCfg.gistId?'':'none';
+  document.getElementById('sync-gist-input').value=syncCfg.gistId||'';
+  document.getElementById('sync-disconnect-btn').style.display=connected?'':'none';
+  document.getElementById('sync-pull-btn').style.display=connected?'':'none';
+  document.getElementById('sync-status').style.display=connected?'':'none';
+}
+async function connectSync(){
+  const inp=document.getElementById('sync-token-input').value.trim();
+  if(!inp||inp.startsWith('●')){
+    // token unchanged, just push
+    if(syncCfg.token){await syncPush();return;}
+    document.getElementById('sync-modal-status').textContent='トークンを入力してください';return;
+  }
+  syncCfg.token=inp;
+  saveSyncCfg();
+  document.getElementById('sync-modal-status').textContent='接続中...';
+  await syncPush();
+  updateSyncModal();
+}
+function disconnectSync(){
+  if(!confirm('同期を解除しますか？（ローカルのデータは消えません）'))return;
+  syncCfg={token:'',gistId:''};
+  saveSyncCfg();
+  setSyncUI('idle','');
+  updateSyncModal();
+  document.getElementById('sync-modal-status').textContent='接続を解除しました';
+}
+
 // ======= HABITS =======
 const HABIT_EMOJIS=['🏃','💪','📚','💧','🧘','🥗','😴','🎯','✍️','🚴','🧹','🎵','🌅','🩺','🧠'];
 let selectedHabitColor=PALETTE[4]; // default blue
@@ -1729,10 +1879,16 @@ function renderBoardPanel(){
 }
 
 // Init
+loadSyncCfg();
 load();
 generateRecurringTasks();
 renderTasks();
 updateBadge();
+// 起動時にクラウドから自動取得
+if(syncCfg.token&&syncCfg.gistId){
+  setSyncUI('syncing','同期中...');
+  syncPull();
+}
 </script>
 </body>
 </html>
