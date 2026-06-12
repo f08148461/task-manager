@@ -477,6 +477,11 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
     <input type="hidden" id="ev-id">
     <div class="form-group"><label>タイトル *</label><input type="text" id="ev-title" placeholder="イベント名"></div>
     <div class="form-group"><label>メモ</label><textarea id="ev-desc" placeholder="詳細・メモ（任意）"></textarea></div>
+    <div class="form-group">
+      <label>URL（お店・Googleマップなどのリンクをそのままペースト）</label>
+      <input type="text" id="ev-url" placeholder="https://..." oninput="renderEvUrlPreview()">
+      <div id="ev-url-preview" style="margin-top:6px"></div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div class="form-group" style="margin-bottom:0"><label>日付 *</label><input type="date" id="ev-date"></div>
       <div></div>
@@ -1112,6 +1117,7 @@ function openEvModal(id){
     document.getElementById('ev-date').value=ev.date;
     document.getElementById('ev-start').value=ev.startTime||'09:00';
     document.getElementById('ev-end').value=ev.endTime||'10:00';
+    document.getElementById('ev-url').value=ev.url||'';
     selectedLabelId=ev.labelId||null;
     const on=ev.allDay||false;
     const sw=document.getElementById('ev-allday-sw');
@@ -1129,11 +1135,13 @@ function openEvModal(id){
     const sw=document.getElementById('ev-allday-sw');
     sw.classList.remove('on');sw.dataset.on='';
     document.getElementById('ev-time-fields').style.display='grid';
+    document.getElementById('ev-url').value='';
     deleteBtn.style.display='none';
   }
   document.getElementById('new-label-form').style.display='none';
   document.getElementById('add-label-btn').style.display='';
   renderEvLabelPicker();
+  renderEvUrlPreview();
   // Attachments
   pendingAttachments=[];
   if(id){
@@ -1144,6 +1152,11 @@ function openEvModal(id){
   }
   document.getElementById('ev-modal').style.display='flex';
   setTimeout(()=>document.getElementById('ev-title').focus(),50);
+}
+
+function renderEvUrlPreview(){
+  const url=document.getElementById('ev-url').value.trim();
+  document.getElementById('ev-url-preview').innerHTML=url?urlWidget(url,'リンク'):'';
 }
 
 function toggleAlldayUI(){
@@ -1160,7 +1173,7 @@ async function saveEv(){
   if(!date){alert('日付を入力してください');return;}
   const allDay=!!document.getElementById('ev-allday-sw').dataset.on;
   const id=document.getElementById('ev-id').value;
-  const data={title,desc:document.getElementById('ev-desc').value.trim(),date,labelId:selectedLabelId||null,allDay,startTime:allDay?null:document.getElementById('ev-start').value,endTime:allDay?null:document.getElementById('ev-end').value};
+  const data={title,desc:document.getElementById('ev-desc').value.trim(),url:document.getElementById('ev-url').value.trim(),date,labelId:selectedLabelId||null,allDay,startTime:allDay?null:document.getElementById('ev-start').value,endTime:allDay?null:document.getElementById('ev-end').value};
   // Save pending attachments to IndexedDB
   const newMeta=await Promise.all(pendingAttachments.map(async a=>{
     await dbPut(a.id,a.dataUrl);
