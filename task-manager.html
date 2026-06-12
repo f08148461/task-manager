@@ -363,10 +363,10 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
               <input type="text" id="new-item-url" placeholder="URL（YouTube・Googleマップなど、任意）" oninput="previewUrl()">
             </div>
             <div id="url-preview" style="margin-bottom:8px"></div>
-            <div class="form-group" style="margin-bottom:8px">
-              <input type="text" id="new-item-note" placeholder="メモ（任意）">
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="text" id="new-item-note" placeholder="メモ（任意）" style="flex:1">
+              <button class="primary" onclick="addItem()" style="padding:6px 14px;flex-shrink:0;font-size:18px;line-height:1">＋</button>
             </div>
-            <button class="primary" onclick="addItem()" style="width:100%">追加</button>
           </div>
         </div>
       </div>
